@@ -388,6 +388,26 @@ pub fn run() {
                 pairing: Mutex::new(None),
                 panel_hidden_at: AtomicI64::new(0),
             });
+            #[cfg(target_os = "macos")]
+            if let Some(panel) = app.get_webview_window("tray") {
+                use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior as Behavior};
+                // Setup runs on AppKit's main thread. Tauri owns this NSWindow;
+                // the borrowed pointer is used only while the panel is alive.
+                let native = unsafe { &*panel.ns_window()?.cast::<NSWindow>() };
+                let behavior = native.collectionBehavior()
+                    & !(Behavior::MoveToActiveSpace
+                        | Behavior::FullScreenPrimary
+                        | Behavior::FullScreenNone
+                        | Behavior::Primary
+                        | Behavior::Auxiliary);
+                native.setCollectionBehavior(
+                    behavior
+                        | Behavior::CanJoinAllSpaces
+                        | Behavior::FullScreenAuxiliary
+                        | Behavior::CanJoinAllApplications
+                        | Behavior::IgnoresCycle,
+                );
+            }
             let application_menu = tauri::menu::Menu::default(app.handle())?;
             let panel_item = tauri::menu::MenuItem::with_id(
                 app,
