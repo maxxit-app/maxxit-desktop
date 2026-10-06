@@ -32,6 +32,7 @@ import {
   type Settings,
 } from "./types";
 import { demoSnapshot } from "./demo";
+import { TokenAnalytics } from "./TokenAnalytics";
 
 const native = isTauri();
 const demo = !native && new URLSearchParams(location.search).has("demo");
@@ -435,46 +436,13 @@ export default function App() {
                   <WindowCard key={p.provider} provider={p} />
                 ))}
               </div>
-              <div className="card chart-card">
-                <div className="section-heading">
-                  <div>
-                    <h2>Observed Codex tokens</h2>
-                    <p className="small muted">
-                      Session increments found in local records. This is a
-                      partial history.
-                    </p>
-                  </div>
-                  <span className="tag">LOCAL</span>
-                </div>
-                {data.providers[0]?.dailyTokens.length ? (
-                  <div className="chart">
-                    {data.providers[0].dailyTokens.slice(-14).map((d) => (
-                      <div
-                        className="bar-column"
-                        key={d.startDate}
-                        title={`${d.startDate}: ${d.tokens.toLocaleString()} tokens`}
-                      >
-                        <span
-                          className="bar"
-                          style={{
-                            height: `${Math.max(2, (180 * d.tokens) / Math.max(...data.providers[0].dailyTokens.map((d) => d.tokens)))}px`,
-                          }}
-                        />
-                        <small>{d.startDate.slice(8)}</small>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="empty-state">
-                    <Activity size={28} />
-                    <h3>No token observations yet.</h3>
-                    <p>
-                      Codex records usage as you work. Claude's status line
-                      supplies allowance windows.
-                    </p>
-                  </div>
-                )}
-              </div>
+              <TokenAnalytics
+                records={
+                  data.providers.find(
+                    (provider) => provider.provider === "codex",
+                  )?.dailyTokens ?? []
+                }
+              />
             </>
           )}
           {tab === "Projects" && (

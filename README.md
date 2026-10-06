@@ -45,6 +45,12 @@ These screenshots show the actual interface with labeled sample data. Direct thi
 
 Missing, expired, or observations older than two hours are shown as unavailable. Token charts contain observed local session increments and are explicitly partial. Percentages describe allowance windows, not billing credits or the cost of a task.
 
+## Usage analytics
+
+Choose 7, 14, or 30 days in Analytics. The chart shows a continuous UTC timeline with a token scale, period total, average per observed day, and busiest observed day. Select a bar with the mouse or keyboard for its exact total. Dots mark dates without records, which are excluded from the average. Today is still in progress. Export CSV saves the selected period with blank totals for unknown dates.
+
+![Usage analytics with sample data](docs/screenshots/analytics.png)
+
 ## Optional cloud features
 
 Connect a Maxxit account in **Connections**, approve the one-time code in the website, and choose usage and project sharing separately. The device credential stays in Mac Keychain. Usage sync sends allowance fields; project sharing sends only the descriptions you write. Conversation content, full paths, and provider credentials are excluded.

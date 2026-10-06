@@ -96,7 +96,7 @@ code {
   display: flex;
   min-height: 100vh;
 }
-aside {
+.app-shell > aside {
   position: fixed;
   inset: 0 auto 0 0;
   width: 222px;
@@ -492,37 +492,6 @@ header p {
   background: #fff0ea;
   border-color: #e9c9ba;
 }
-.chart-card {
-  margin-top: 24px;
-  padding: 0 25px 22px;
-}
-.chart {
-  height: 225px;
-  display: flex;
-  align-items: flex-end;
-  gap: 14px;
-  justify-content: space-around;
-  border-bottom: 1px solid var(--line);
-  padding: 0 5px 10px;
-}
-.bar-column {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 12px;
-}
-.bar {
-  width: 100%;
-  max-width: 39px;
-  border-radius: 5px 5px 1px 1px;
-  background: #cfe193;
-  transition: height 0.3s;
-}
-.bar-column small {
-  font-size: var(--text-small);
-  color: var(--muted);
-}
 .tag {
   font-size: var(--text-small);
   letter-spacing: 1px;
@@ -858,7 +827,7 @@ footer .muted {
   }
 }
 @media (max-width: 1000px) {
-  aside {
+  .app-shell > aside {
     width: 192px;
   }
   main {
@@ -926,4 +895,273 @@ footer .muted {
   [data-theme="system"] .button.secondary {
     color: var(--ink);
   }
+}
+
+.token-analytics {
+  margin-top: 24px;
+  padding: 26px;
+}
+.token-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+.token-heading h2 {
+  font-size: 24px;
+  margin: 8px 0;
+}
+.token-heading p {
+  font-size: 15px;
+}
+.token-range {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  background: var(--alt);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.token-range button {
+  font-size: 14px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  color: var(--muted);
+}
+.token-range button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 4px #00000015;
+}
+.token-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 28px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 22px 0;
+  gap: 24px;
+}
+.token-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.token-stats span,
+.token-stats small {
+  font-size: 14px;
+  color: var(--muted);
+}
+.token-stats strong {
+  font-size: 30px;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.token-explorer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: 24px;
+  align-items: stretch;
+}
+.token-chart-scroll {
+  overflow-x: auto;
+  padding: 4px 0 12px;
+}
+.token-plot {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+}
+.token-axis {
+  height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: right;
+  font-size: 14px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.token-chart-body {
+  position: relative;
+}
+.token-grid {
+  position: absolute;
+  inset: 7px 0 auto;
+  height: 206px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.token-grid i {
+  display: block;
+  border-top: 1px dashed var(--line);
+}
+.token-grid i:last-child {
+  border-top-style: solid;
+}
+.token-columns {
+  display: grid;
+  gap: 6px;
+  position: relative;
+}
+.token-column {
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  border-radius: 5px;
+  padding: 0;
+  color: var(--muted);
+}
+.token-bar-area {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 213px;
+  padding-top: 7px;
+  position: relative;
+}
+.token-bar {
+  display: block;
+  width: 100%;
+  max-width: 56px;
+  background: #9fb775;
+  border-radius: 5px 5px 0 0;
+  transition:
+    height 0.2s,
+    background 0.2s;
+}
+.token-column.selected .token-bar,
+.token-column:hover .token-bar {
+  background: var(--accent);
+}
+.token-column.selected {
+  color: var(--ink);
+}
+.token-column:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.token-missing {
+  font-size: 28px;
+  line-height: 20px;
+  color: var(--muted);
+}
+.token-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 14px;
+  padding-top: 12px;
+  white-space: nowrap;
+}
+.token-detail {
+  background: var(--alt);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.token-detail > span {
+  font-size: 14px;
+}
+.token-detail > strong {
+  font-size: 26px;
+  letter-spacing: -0.6px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.token-detail p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.token-detail-note {
+  margin-top: auto;
+  padding-top: 18px;
+}
+.token-detail-note > span {
+  font-size: 14px;
+  font-weight: 600;
+}
+.token-detail-note p {
+  margin-top: 5px;
+}
+.token-chart-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin-top: 20px;
+}
+.token-chart-footer p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 520px;
+}
+.token-chart-footer button {
+  flex-shrink: 0;
+}
+@media (max-width: 1000px) {
+  .token-explorer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .token-detail {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  .token-detail > p {
+    grid-column: 1;
+  }
+  .token-detail-note {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    padding-top: 0;
+    margin-top: 0;
+  }
+}
+@media (max-width: 760px) {
+  .token-analytics {
+    padding: 18px;
+  }
+  .token-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .token-stats {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .token-detail {
+    display: flex;
+  }
+  .token-chart-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .token-bar {
+    transition: none;
+  }
+}
+
+.token-date small {
+  font-size: 14px;
+  color: var(--muted);
 }
