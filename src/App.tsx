@@ -1,3 +1,4 @@
+import {version} from "../package.json";
 import { useCallback, useEffect, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -944,7 +945,7 @@ export default function App() {
               maxxit.{" "}
               <span className="muted">A little more room to build.</span>
             </span>
-            <span className="mono small">v0.1.0</span>
+            <span className="mono small">v{version}</span>
           </footer>
         </div>
       </main>
