@@ -130,6 +130,17 @@ async fn cloud_action(runtime: State<'_, Runtime>, action: String) -> Result<Val
         return Err("Unknown cloud action".into());
     }
     if action == "generate" {
+        let settings = runtime_settings(&runtime)?;
+        if !settings.ai_consent {
+            return Err("Enable project sharing before requesting ideas".into());
+        }
+        cloud::request(
+            &settings,
+            "desktop/preferences",
+            Some(json!({"aiConsent":true,"reminders":settings.cloud_sync})),
+            true,
+        )
+        .await?;
         sync_cloud(&runtime).await?;
     }
     cloud::request(

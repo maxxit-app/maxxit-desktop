@@ -22,8 +22,8 @@ if [[ ! -d "$work/Maxxit.app" ]]; then
   command -v brew >/dev/null || { echo 'Install Homebrew from https://brew.sh, then run this command again.' >&2; exit 1; }
   xcode-select -p >/dev/null 2>&1 || { echo 'Run xcode-select --install, finish installation, then run this command again.' >&2; exit 1; }
   brew install node@24 rust
-  export PATH="$(brew --prefix node@24)/bin:$HOME/.cargo/bin:$PATH"
-  git clone --depth 1 --branch v0.1.0 "$repo.git" "$work/source"
+  export PATH="$(brew --prefix node@24)/bin:$(brew --prefix rust)/bin:$PATH"
+  git clone --depth 1 --branch v0.1.1 "$repo.git" "$work/source"
   cd "$work/source"
   npx --yes pnpm@10.19.0 install --frozen-lockfile
   npx --yes pnpm@10.19.0 tauri build --bundles app
