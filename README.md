@@ -1,6 +1,6 @@
 # Maxxit
 
-Codex and Claude Code allowance, together on your Mac. Check remaining allowance in the menu bar, browse local observations, and keep a list of projects worth finishing.
+Track Codex and Claude Code usage and reset times on your Mac. The app includes daily Codex token charts, a menu bar usage panel, and a project list.
 
 Built with Tauri 2, React, and Rust. Local analytics are free and work without a Maxxit account. Maxxit Pro adds project ideas and reset emails for $9.99/month after service setup is complete.
 

@@ -69,8 +69,7 @@ export function TokenAnalytics({ records }: { records: TokenDay[] }) {
     >
       <div className="token-heading">
         <div>
-          <span className="eyebrow">LOCAL ACTIVITY</span>
-          <h2>How you use Codex</h2>
+          <h2>Codex token usage</h2>
           <p className="muted">Daily token increments observed on this Mac.</p>
         </div>
         <div className="token-range" aria-label="Chart date range">

@@ -266,7 +266,6 @@ export default function TrayPanel() {
           <span className="tray-brand">
             maxxit<span>.</span>
           </span>
-          <p>Your allowance, at a glance</p>
         </div>
         <div className="tray-header-actions">
           <button

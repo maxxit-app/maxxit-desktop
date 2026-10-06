@@ -244,28 +244,25 @@ export default function App() {
   }
   const title: Record<string, [string, string]> = {
     Overview: [
-      "Your allowance, at a glance.",
-      "See what is left before your next reset.",
+      "Usage overview",
+      "Remaining usage and reset times for your connected assistants.",
     ],
     Analytics: [
-      "A record of your work.",
-      "Usage observed on this Mac, kept on this Mac.",
+      "Usage analytics",
+      "Daily token usage from Codex records on this Mac.",
     ],
     Projects: [
-      "Give your tokens a purpose.",
-      "Keep the projects you want to move forward.",
+      "Projects",
+      "Add project descriptions to get task suggestions with Maxxit Pro.",
     ],
-    Ideas: [
-      "Put spare allowance to work.",
-      "Useful next steps, based on the projects you choose.",
-    ],
+    Ideas: ["Project ideas", "Suggested tasks and prompts for your projects."],
     Connections: [
-      "Bring your assistants together.",
-      "Your provider sign-in stays with its own app.",
+      "Connections",
+      "Connect Codex, Claude Code, or your Maxxit account.",
     ],
     Settings: [
-      "Make Maxxit yours.",
-      "Choose what appears in your menu bar and when we reach you.",
+      "Settings",
+      "Manage appearance, menu bar settings, and email reminders.",
     ],
   };
   return (
@@ -292,10 +289,6 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="local-note">
-            <ShieldCheck size={17} />
-            <span>Local by default</span>
-          </div>
           <div className="account">
             <div className="avatar">M</div>
             <div>
@@ -326,11 +319,6 @@ export default function App() {
         </div>
         <div className="page">
           <header>
-            <div className="eyebrow">
-              {tab === "Overview"
-                ? "A LITTLE MORE ROOM TO BUILD"
-                : `YOUR ${tab.toUpperCase()}`}
-            </div>
             <h1>{title[tab][0]}</h1>
             <p>{title[tab][1]}</p>
           </header>
@@ -372,11 +360,8 @@ export default function App() {
                   <Lightbulb size={24} />
                 </div>
                 <div>
-                  <h3>Something worth finishing.</h3>
-                  <p>
-                    Add a project. Maxxit Pro can suggest a small, useful task
-                    before your allowance resets.
-                  </p>
+                  <h3>Project suggestions</h3>
+                  <p>Add a project to get task suggestions with Maxxit Pro.</p>
                 </div>
                 <button
                   className="button secondary"
@@ -387,9 +372,6 @@ export default function App() {
               </div>
               <div className="section-heading">
                 <h2>Recent observations</h2>
-                <span className="small muted">
-                  Allowance windows, not billing credits
-                </span>
               </div>
               <div className="card history">
                 {data.history.length ? (
@@ -416,7 +398,7 @@ export default function App() {
                 ) : (
                   <div className="empty-state">
                     <Activity size={27} />
-                    <h3>Your usage history starts here.</h3>
+                    <h3>No usage history yet</h3>
                     <p>Connect an assistant, then use it as usual.</p>
                     <button
                       className="button"
@@ -482,18 +464,14 @@ export default function App() {
                     </div>
                     <h3>{p.name}</h3>
                     <p>{p.description || "No description yet."}</p>
-                    <span className="tag">LOCAL PROJECT</span>
                   </article>
                 ))}
               </div>
               {!data.projects.length && (
                 <div className="card empty-state">
                   <Folder size={30} />
-                  <h3>What would you like to finish?</h3>
-                  <p>
-                    A clear project description makes the next step easier to
-                    find.
-                  </p>
+                  <h3>No projects yet</h3>
+                  <p>Add a project name and description.</p>
                   <button className="button" onClick={() => setAdd(true)}>
                     Add your first project <Plus size={15} />
                   </button>
@@ -508,7 +486,7 @@ export default function App() {
           {tab === "Ideas" && data.cloud.plan === "pro" && (
             <>
               <div className="section-heading">
-                <h2>Your next steps</h2>
+                <h2>Suggested tasks</h2>
                 <button
                   className="button"
                   disabled={busy || !data.settings.aiConsent}
@@ -554,7 +532,7 @@ export default function App() {
                 <Lightbulb size={35} />
               </div>
               <span className="tag">MAXXIT PRO</span>
-              <h2>Turn spare allowance into progress.</h2>
+              <h2>Project ideas and reset reminders</h2>
               <p>
                 Get project ideas and an email before a selected allowance
                 window resets. You choose the task and run it in your coding
@@ -924,10 +902,7 @@ export default function App() {
             </div>
           )}
           <footer>
-            <span>
-              maxxit.{" "}
-              <span className="muted">A little more room to build.</span>
-            </span>
+            <span>maxxit.</span>
             <span className="mono small">v{version}</span>
           </footer>
         </div>
@@ -977,7 +952,7 @@ export default function App() {
                 maxLength={120}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="A project worth finishing"
+                placeholder="Project name"
               />
             </label>
             <label>
