@@ -1,4 +1,4 @@
-import {version} from "../package.json";
+import { version } from "../package.json";
 import { useCallback, useEffect, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -189,6 +189,21 @@ export default function App() {
       cleanup?.();
     };
   }, [refresh]);
+  useEffect(() => {
+    if (!native) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen<string>("navigate-to", (event) => setTab(event.payload)).then(
+      (fn) => {
+        if (disposed) fn();
+        else unlisten = fn;
+      },
+    );
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = data.settings.theme;
   }, [data.settings.theme]);

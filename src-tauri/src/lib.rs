@@ -6,7 +6,13 @@ mod storage;
 
 use model::{ProviderView, Settings};
 use serde_json::{json, Value};
-use std::{path::PathBuf, sync::Mutex};
+use std::{
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicI64, Ordering},
+        Mutex,
+    },
+};
 use storage::Store;
 use tauri::{Emitter, Manager, State};
 
@@ -14,6 +20,7 @@ struct Runtime {
     store: Mutex<Store>,
     directory: PathBuf,
     pairing: Mutex<Option<Value>>,
+    panel_hidden_at: AtomicI64,
 }
 fn collect(runtime: &Runtime) -> Result<Value, String> {
     let store = runtime.store.lock().map_err(|_| "Storage unavailable")?;
@@ -250,71 +257,107 @@ fn remove_project(runtime: State<'_, Runtime>, id: String) -> Result<(), String>
         .remove_project(&id)
 }
 
-fn tray_menu(
-    app: &tauri::AppHandle,
-    data: &Value,
-) -> Result<tauri::menu::Menu<tauri::Wry>, String> {
-    let menu = tauri::menu::Menu::new(app).map_err(|e| e.to_string())?;
-    for provider in data["providers"]
-        .as_array()
-        .ok_or("Invalid provider state")?
+#[tauri::command]
+fn tray_resize(window: tauri::WebviewWindow, height: f64) -> Result<(), String> {
+    if window.label() != "tray" || !height.is_finite() {
+        return Err("Invalid panel size".into());
+    }
+    let available = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .map(|m| m.work_area().size.height as f64 / m.scale_factor() - 8.0)
+        .unwrap_or(740.0);
+    let height = height.clamp(350.0, 740.0).min(available.max(200.0));
+    window
+        .set_size(tauri::LogicalSize::new(400.0, height))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn tray_action(app: tauri::AppHandle, page: String) -> Result<(), String> {
+    if ![
+        "Overview",
+        "Analytics",
+        "Connections",
+        "Settings",
+        "close",
+        "quit",
+    ]
+    .contains(&page.as_str())
     {
-        let name = if provider["provider"] == "codex" {
-            "Codex"
-        } else {
-            "Claude Code"
-        };
-        let heading = tauri::menu::MenuItem::new(app, name, false, None::<&str>)
-            .map_err(|e| e.to_string())?;
-        menu.append(&heading).map_err(|e| e.to_string())?;
-        let observation = &provider["observation"];
-        let fresh = observation["observedAt"]
-            .as_str()
-            .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
-            .is_some_and(|t| chrono::Utc::now().timestamp() - t.timestamp() < 7200);
-        if let Some(windows) = observation["windows"].as_array() {
-            for w in windows {
-                let label = w["label"].as_str().unwrap_or("Allowance");
-                let text = if fresh && w["availability"] == "available" {
-                    let reset = w["resetsAt"]
-                        .as_str()
-                        .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok());
-                    let minutes = reset
-                        .map(|t| (t.timestamp() - chrono::Utc::now().timestamp()) / 60)
-                        .unwrap_or(0);
-                    if minutes > 0 {
-                        format!(
-                            "{label}: {:.0}% left · reset in {}h {}m",
-                            100.0 - w["usedPercent"].as_f64().unwrap_or(100.0),
-                            minutes / 60,
-                            minutes % 60
-                        )
-                    } else {
-                        format!("{label}: awaiting usage")
-                    }
-                } else {
-                    format!("{label}: usage unavailable")
-                };
-                let item = tauri::menu::MenuItem::new(app, text, false, None::<&str>)
-                    .map_err(|e| e.to_string())?;
-                menu.append(&item).map_err(|e| e.to_string())?;
-            }
-        } else {
-            let item = tauri::menu::MenuItem::new(app, "Not connected", false, None::<&str>)
-                .map_err(|e| e.to_string())?;
-            menu.append(&item).map_err(|e| e.to_string())?;
+        return Err("Unknown panel action".into());
+    }
+    if let Some(panel) = app.get_webview_window("tray") {
+        let _ = panel.hide();
+    }
+    if page == "quit" {
+        app.exit(0);
+    } else if page != "close" {
+        if let Some(main) = app.get_webview_window("main") {
+            main.show().map_err(|e| e.to_string())?;
+            main.set_focus().map_err(|e| e.to_string())?;
+            main.emit("navigate-to", page).map_err(|e| e.to_string())?;
         }
     }
-    for (id, text) in [
-        ("open", "Open Maxxit"),
-        ("refresh", "Refresh usage"),
-        ("quit", "Quit Maxxit"),
-    ] {
-        let item = tauri::menu::MenuItem::with_id(app, id, text, true, None::<&str>)
-            .map_err(|e| e.to_string())?;
-        menu.append(&item).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn show_tray_panel(
+    app: &tauri::AppHandle,
+    position: tauri::PhysicalPosition<f64>,
+    rect: tauri::Rect,
+    toggle: bool,
+) {
+    // macOS can blur the panel on mouse-down before the tray click arrives.
+    // Treat that click as dismissal rather than reopening the panel immediately.
+    let elapsed = chrono::Utc::now().timestamp_millis()
+        - app
+            .state::<Runtime>()
+            .panel_hidden_at
+            .load(Ordering::Relaxed);
+    if toggle && (0..200).contains(&elapsed) {
+        return;
     }
-    Ok(menu)
+    if let Some(panel) = app.get_webview_window("tray") {
+        if toggle && panel.is_visible().unwrap_or(false) {
+            let _ = panel.hide();
+            return;
+        }
+        let monitors = panel.available_monitors().unwrap_or_default();
+        let monitor = monitors.iter().find(|m| {
+            position.x >= m.position().x as f64
+                && position.x < (m.position().x as f64 + m.size().width as f64)
+                && position.y >= m.position().y as f64
+                && position.y < (m.position().y as f64 + m.size().height as f64)
+        });
+        let scale = monitor.map(|m| m.scale_factor()).unwrap_or(1.0);
+        let anchor = rect.position.to_physical::<f64>(scale);
+        let size = rect.size.to_physical::<f64>(scale);
+        let mut x = anchor.x + size.width / 2.0 - 200.0 * scale;
+        let mut y = anchor.y + size.height + 6.0 * scale;
+        if let Some(m) = monitor {
+            let work = m.work_area();
+            let left = work.position.x as f64 + 8.0 * scale;
+            let top = work.position.y as f64 + 4.0 * scale;
+            x = x
+                .max(left)
+                .min((work.position.x as f64 + work.size.width as f64 - 408.0 * scale).max(left));
+            let height = (740.0 * scale)
+                .min(work.size.height as f64 - 8.0 * scale)
+                .max(200.0 * scale);
+            let _ = panel.set_size(tauri::PhysicalSize::new(
+                (400.0 * scale) as u32,
+                height as u32,
+            ));
+            y = y.max(top).min(
+                (work.position.y as f64 + work.size.height as f64 - height - 4.0 * scale).max(top),
+            );
+        }
+        let _ = panel.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = panel.show();
+        let _ = panel.set_focus();
+    }
 }
 
 pub fn run() {
@@ -343,7 +386,24 @@ pub fn run() {
                 store: Mutex::new(store),
                 directory,
                 pairing: Mutex::new(None),
+                panel_hidden_at: AtomicI64::new(0),
             });
+            let application_menu = tauri::menu::Menu::default(app.handle())?;
+            let panel_item = tauri::menu::MenuItem::with_id(
+                app,
+                "show-usage",
+                "Show usage panel",
+                true,
+                Some("CmdOrCtrl+Shift+U"),
+            )?;
+            for item in application_menu.items()? {
+                if let tauri::menu::MenuItemKind::Submenu(submenu) = item {
+                    if submenu.text()? == "View" {
+                        submenu.append(&panel_item)?;
+                    }
+                }
+            }
+            app.set_menu(application_menu)?;
             let open =
                 tauri::menu::MenuItem::with_id(app, "open", "Open Maxxit", true, None::<&str>)?;
             let refresh = tauri::menu::MenuItem::with_id(
@@ -360,7 +420,7 @@ pub fn run() {
                 .tooltip("Maxxit · connect a provider")
                 .title("M")
                 .menu(&menu)
-                .show_menu_on_left_click(true);
+                .show_menu_on_left_click(false);
             if let Some(icon) = app.default_window_icon() {
                 tray = tray.icon(icon.clone());
             }
@@ -376,6 +436,19 @@ pub fn run() {
                 }
                 "quit" => app.exit(0),
                 _ => {}
+            })
+            .on_tray_icon_event(|tray, event| {
+                if let tauri::tray::TrayIconEvent::Click {
+                    button: tauri::tray::MouseButton::Left,
+                    button_state: tauri::tray::MouseButtonState::Up,
+                    position,
+                    rect,
+                    ..
+                } = event
+                {
+                    let app = tray.app_handle();
+                    show_tray_panel(app, position, rect, true);
+                }
             })
             .build(app)?;
             let handle = app.handle().clone();
@@ -395,7 +468,16 @@ pub fn run() {
                             .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
                             .is_some_and(|t| chrono::Utc::now().timestamp() - t.timestamp() < 7200);
                         let used = window
-                            .filter(|w| fresh && w["availability"] == "available")
+                            .filter(|w| {
+                                fresh
+                                    && w["availability"] == "available"
+                                    && w["resetsAt"]
+                                        .as_str()
+                                        .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
+                                        .is_some_and(|t| {
+                                            t.timestamp() > chrono::Utc::now().timestamp()
+                                        })
+                            })
                             .and_then(|w| w["usedPercent"].as_f64());
                         let title = used
                             .map(|v| {
@@ -408,9 +490,6 @@ pub fn run() {
                             .unwrap_or_else(|| "M —".into());
                         if let Some(tray) = handle.tray_by_id("maxxit") {
                             let _ = tray.set_title(Some(&title));
-                            if let Ok(menu) = tray_menu(&handle, &data) {
-                                let _ = tray.set_menu(Some(menu));
-                            }
                             let _ = tray.set_tooltip(Some(format!(
                                 "Maxxit · {preferred} · remaining allowance"
                             )));
@@ -426,7 +505,35 @@ pub fn run() {
             });
             Ok(())
         })
+        .on_menu_event(|app, event| {
+            if event.id.as_ref() == "show-usage" {
+                if let Some(tray) = app.tray_by_id("maxxit") {
+                    if let Ok(Some(rect)) = tray.rect() {
+                        let scale = app
+                            .get_webview_window("main")
+                            .and_then(|w| w.scale_factor().ok())
+                            .unwrap_or(1.0);
+                        let position = rect.position.to_physical::<f64>(scale);
+                        show_tray_panel(app, position, rect, false);
+                    }
+                }
+            }
+        })
         .on_window_event(|window, event| {
+            if window.label() == "tray" {
+                if matches!(event, tauri::WindowEvent::Focused(false)) {
+                    window
+                        .state::<Runtime>()
+                        .panel_hidden_at
+                        .store(chrono::Utc::now().timestamp_millis(), Ordering::Relaxed);
+                    let _ = window.hide();
+                }
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                return;
+            }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let runtime = window.state::<Runtime>();
                 if runtime
@@ -442,6 +549,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             snapshot,
+            tray_action,
+            tray_resize,
             save_settings,
             claude_preview,
             connect_provider,
