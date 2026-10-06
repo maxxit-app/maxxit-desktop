@@ -1,0 +1,10 @@
+node_modules/
+dist/
+src-tauri/target/
+.env*
+!.env.example
+.DS_Store
+test-results/
+*.tsbuildinfo
+*.key
+*.p12
