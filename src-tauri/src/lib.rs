@@ -15,6 +15,42 @@ use std::{
 };
 use storage::Store;
 use tauri::{Emitter, Manager, State};
+use tauri_plugin_dialog::DialogExt;
+
+#[tauri::command]
+async fn export_token_csv(app: tauri::AppHandle, csv: String, days: u32) -> Result<bool, String> {
+    if ![7, 14, 30].contains(&days)
+        || csv.len() > 10_000
+        || !csv.starts_with("date_utc,observed_tokens\n")
+    {
+        return Err("Invalid token export".into());
+    }
+    for line in csv.lines().skip(1) {
+        let (date, tokens) = line.split_once(',').ok_or("Invalid token export")?;
+        if date.len() != 10
+            || !date.chars().all(|c| c.is_ascii_digit() || c == '-')
+            || (!tokens.is_empty() && tokens.parse::<u64>().is_err())
+        {
+            return Err("Invalid token export".into());
+        }
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let selected = app
+            .dialog()
+            .file()
+            .add_filter("CSV", &["csv"])
+            .set_file_name(format!("maxxit-codex-{days}-days.csv"))
+            .blocking_save_file();
+        let Some(selected) = selected else {
+            return Ok(false);
+        };
+        let path = selected.into_path().map_err(|e| e.to_string())?;
+        std::fs::write(path, csv).map_err(|e| e.to_string())?;
+        Ok(true)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 
 struct Runtime {
     store: Mutex<Store>,
@@ -569,6 +605,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             snapshot,
+            export_token_csv,
             tray_action,
             tray_resize,
             save_settings,

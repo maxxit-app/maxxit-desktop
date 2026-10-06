@@ -2266,7 +2266,7 @@ dependencies = [
 
 [[package]]
 name = "maxxit"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "chrono",
  "dirs 6.0.0",

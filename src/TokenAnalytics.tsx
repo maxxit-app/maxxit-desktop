@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { Activity, Download } from "lucide-react";
 import { tokenSeries, tokenSummary, type TokenDay } from "./analytics";
 
@@ -18,6 +19,12 @@ const dateLabel = (date: string, full = false) =>
 export function TokenAnalytics({ records }: { records: TokenDay[] }) {
   const [range, setRange] = useState(14);
   const [selected, setSelected] = useState<string | null>(null);
+  const chartScroll = useRef<HTMLDivElement>(null);
+  const [exportStatus, setExportStatus] = useState("");
+  useEffect(() => {
+    if (chartScroll.current)
+      chartScroll.current.scrollLeft = chartScroll.current.scrollWidth;
+  }, [range]);
   const series = tokenSeries(records, range);
   const summary = tokenSummary(series);
   const day =
@@ -30,10 +37,22 @@ export function TokenAnalytics({ records }: { records: TokenDay[] }) {
           Math.pow(10, Math.floor(Math.log10(summary.peak.tokens))),
       )
     : 1;
-  const exportCsv = () => {
+  const exportCsv = async () => {
     const csv =
       "date_utc,observed_tokens\n" +
       series.map((item) => `${item.startDate},${item.tokens ?? ""}`).join("\n");
+    if (isTauri()) {
+      try {
+        const saved = await invoke<boolean>("export_token_csv", {
+          csv,
+          days: range,
+        });
+        setExportStatus(saved ? "CSV saved." : "Export canceled.");
+      } catch {
+        setExportStatus("Could not save CSV. Try another location.");
+      }
+      return;
+    }
     const url = URL.createObjectURL(
       new Blob([csv], { type: "text/csv;charset=utf-8" }),
     );
@@ -105,7 +124,7 @@ export function TokenAnalytics({ records }: { records: TokenDay[] }) {
       </div>
       {summary.observedDays ? (
         <div className="token-explorer">
-          <div className="token-chart-scroll">
+          <div className="token-chart-scroll" ref={chartScroll}>
             <div
               className="token-plot"
               style={{
@@ -200,6 +219,7 @@ export function TokenAnalytics({ records }: { records: TokenDay[] }) {
           </p>
         </div>
       )}
+      <p role="status">{exportStatus}</p>
       <div className="token-chart-footer">
         <p>
           UTC dates · Partial local history. Claude Code supplies allowance

@@ -924,6 +924,7 @@ footer .muted {
   flex-shrink: 0;
 }
 .token-range button {
+  background: transparent;
   font-size: 14px;
   padding: 9px 12px;
   border-radius: 7px;
