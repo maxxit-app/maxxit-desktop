@@ -11,11 +11,14 @@
   font-display: swap;
 }
 :root {
+  --text-small: 14px;
+  --text-body: 15px;
   font-family: Manrope, system-ui, sans-serif;
   color: #232b24;
   background: #f7f7f2;
   font-synthesis: none;
-  font-size: 14px;
+  font-size: var(--text-body);
+  line-height: 1.5;
   --bg: #f7f7f2;
   --surface: #fff;
   --line: #e4e8de;
@@ -80,7 +83,7 @@ p {
 }
 small,
 .small {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .muted {
   color: var(--muted);
@@ -121,7 +124,7 @@ aside {
   color: #789445;
 }
 .workspace-label {
-  font-size: 9px;
+  font-size: var(--text-small);
   letter-spacing: 1.5px;
   margin: 42px 15px 13px;
   color: var(--muted);
@@ -151,7 +154,7 @@ nav button .pro-pill {
   margin-left: auto;
 }
 .pro-pill {
-  font-size: 9px;
+  font-size: var(--text-small);
   line-height: 16px;
   border: 1px solid #cedaad;
   border-radius: 4px;
@@ -168,7 +171,7 @@ nav button .pro-pill {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-small);
   padding: 16px;
 }
 .account {
@@ -183,12 +186,12 @@ nav button .pro-pill {
 }
 .account strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .account span {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-small);
   margin-top: 3px;
 }
 .avatar {
@@ -198,7 +201,7 @@ nav button .pro-pill {
   place-items: center;
   width: 31px;
   height: 31px;
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 main {
   margin-left: 222px;
@@ -212,7 +215,7 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 .topbar > span {
@@ -229,13 +232,13 @@ header {
   margin-bottom: 32px;
 }
 .eyebrow {
-  font-size: 9px;
+  font-size: var(--text-small);
   letter-spacing: 1.7px;
   color: #748354;
   margin-bottom: 11px;
 }
 header p {
-  font-size: 13px;
+  font-size: var(--text-small);
   margin-top: 10px;
 }
 .section-heading {
@@ -250,7 +253,7 @@ header p {
   align-items: center;
   gap: 6px;
   background: none;
-  font-size: 11px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 .card {
@@ -294,14 +297,14 @@ header p {
 .provider-heading .small {
   display: block;
   margin-top: 3px;
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 .status {
   background: var(--alt);
   border-radius: 5px;
   padding: 5px 7px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--text-small);
 }
 .status.connected {
   background: #edf4df;
@@ -314,10 +317,10 @@ header p {
   display: flex;
   justify-content: space-between;
   margin-bottom: 10px;
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .allowance-label .mono {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .progress {
   height: 7px;
@@ -333,14 +336,14 @@ header p {
   background: #cee28e;
 }
 .allowance .small {
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 .card-foot {
   margin-top: 24px;
   border-top: 1px solid var(--line);
   padding: 14px 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--text-small);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -363,7 +366,7 @@ header p {
 .provider-empty p {
   text-align: center;
   max-width: 240px;
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .insight-strip {
   display: flex;
@@ -376,7 +379,7 @@ header p {
   margin-top: 22px;
 }
 .insight-strip p {
-  font-size: 11px;
+  font-size: var(--text-small);
   margin-top: 4px;
 }
 .insight-strip > div:nth-child(2) {
@@ -401,7 +404,7 @@ header p {
   background: var(--accent);
   color: #35452a;
   border-radius: 7px;
-  font-size: 11px;
+  font-size: var(--text-small);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -444,17 +447,17 @@ header p {
   flex: 1;
 }
 .history-row strong {
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .history-row small {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-small);
   margin-top: 3px;
 }
 .history-row time {
   margin-left: 15px;
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 .empty-state {
   text-align: center;
@@ -466,7 +469,7 @@ header p {
   color: var(--ink);
 }
 .empty-state p {
-  font-size: 12px;
+  font-size: var(--text-small);
   margin: 8px auto 18px;
   max-width: 340px;
 }
@@ -478,7 +481,7 @@ header p {
   border: 1px solid #dce4cb;
   background: #edf2df;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: var(--text-small);
   margin-bottom: 20px;
   line-height: 1.6;
 }
@@ -517,11 +520,11 @@ header p {
   transition: height 0.3s;
 }
 .bar-column small {
-  font-size: 9px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 .tag {
-  font-size: 8px;
+  font-size: var(--text-small);
   letter-spacing: 1px;
   color: #7b876b;
   background: var(--alt);
@@ -551,7 +554,7 @@ header p {
   margin: 22px 0 8px;
 }
 .project-card p {
-  font-size: 12px;
+  font-size: var(--text-small);
   margin-bottom: 20px;
 }
 .pro-card {
@@ -576,7 +579,7 @@ header p {
   margin: 18px 0 12px;
 }
 .pro-card p {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .pro-card ul {
   list-style: none;
@@ -591,7 +594,7 @@ header p {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .pro-card li svg {
   color: #82984c;
@@ -603,12 +606,12 @@ header p {
 }
 .price span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-small);
   letter-spacing: 0;
 }
 .pro-card > small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-small);
   margin-top: 15px;
   color: var(--muted);
 }
@@ -623,7 +626,7 @@ header p {
   margin: 0 0 5px;
 }
 .connection-card p {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .connection-detail {
   padding: 17px 0 20px 48px;
@@ -631,7 +634,7 @@ header p {
   align-items: center;
   gap: 15px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .connection-detail code {
   background: var(--alt);
@@ -648,7 +651,7 @@ header p {
   gap: 15px;
 }
 .connection-actions .small {
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 .settings-grid {
   display: grid;
@@ -662,7 +665,7 @@ header p {
   margin-bottom: 20px;
 }
 .settings-card p {
-  font-size: 12px;
+  font-size: var(--text-small);
   margin-bottom: 14px;
 }
 .settings-card:last-child {
@@ -674,7 +677,7 @@ header p {
   gap: 8px;
   padding: 15px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .field-row > span:first-child {
   flex: 1;
@@ -689,7 +692,7 @@ header p {
   background: var(--alt);
   color: var(--ink);
   border: 1px solid var(--line);
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 .toggle-row {
   display: flex;
@@ -702,7 +705,7 @@ header p {
   flex: 1;
 }
 .toggle-row strong {
-  font-size: 11px;
+  font-size: var(--text-small);
   font-weight: 500;
   display: block;
 }
@@ -710,7 +713,7 @@ header p {
   display: block;
   margin-top: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-small);
   line-height: 1.5;
 }
 .toggle-row input {
@@ -754,11 +757,13 @@ header p {
 }
 footer {
   display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
   justify-content: space-between;
   border-top: 1px solid var(--line);
   margin-top: 38px;
   padding-top: 17px;
-  font-size: 10px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 footer .muted {
@@ -780,7 +785,7 @@ footer .muted {
 }
 .modal > label {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-small);
   margin-top: 22px;
 }
 .modal input,
@@ -795,7 +800,7 @@ footer .muted {
   background: var(--bg);
 }
 .modal > p {
-  font-size: 12px;
+  font-size: var(--text-small);
   margin: 14px 0 20px;
 }
 .modal-actions {
@@ -809,7 +814,7 @@ footer .muted {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 12px;
-  font-size: 10px;
+  font-size: var(--text-small);
   overflow-wrap: anywhere;
   margin-top: 8px;
 }

@@ -267,10 +267,10 @@ fn tray_resize(window: tauri::WebviewWindow, height: f64) -> Result<(), String> 
         .ok()
         .flatten()
         .map(|m| m.work_area().size.height as f64 / m.scale_factor() - 8.0)
-        .unwrap_or(740.0);
-    let height = height.clamp(350.0, 740.0).min(available.max(200.0));
+        .unwrap_or(860.0);
+    let height = height.clamp(350.0, 860.0).min(available.max(200.0));
     window
-        .set_size(tauri::LogicalSize::new(400.0, height))
+        .set_size(tauri::LogicalSize::new(440.0, height))
         .map_err(|e| e.to_string())
 }
 
@@ -334,7 +334,7 @@ fn show_tray_panel(
         let scale = monitor.map(|m| m.scale_factor()).unwrap_or(1.0);
         let anchor = rect.position.to_physical::<f64>(scale);
         let size = rect.size.to_physical::<f64>(scale);
-        let mut x = anchor.x + size.width / 2.0 - 200.0 * scale;
+        let mut x = anchor.x + size.width / 2.0 - 220.0 * scale;
         let mut y = anchor.y + size.height + 6.0 * scale;
         if let Some(m) = monitor {
             let work = m.work_area();
@@ -342,12 +342,12 @@ fn show_tray_panel(
             let top = work.position.y as f64 + 4.0 * scale;
             x = x
                 .max(left)
-                .min((work.position.x as f64 + work.size.width as f64 - 408.0 * scale).max(left));
-            let height = (740.0 * scale)
+                .min((work.position.x as f64 + work.size.width as f64 - 448.0 * scale).max(left));
+            let height = (860.0 * scale)
                 .min(work.size.height as f64 - 8.0 * scale)
                 .max(200.0 * scale);
             let _ = panel.set_size(tauri::PhysicalSize::new(
-                (400.0 * scale) as u32,
+                (440.0 * scale) as u32,
                 height as u32,
             ));
             y = y.max(top).min(
