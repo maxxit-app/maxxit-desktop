@@ -22,7 +22,8 @@ billing/email availability is determined by the service; ideas never run automat
 
 The verified installer script downloads the DMG, checks its checksum and the
 app's Maxxit signing identity, and installs under ~/Applications. Inspect scripts/install.sh
-before running it. A failed download returns an error; it never builds source automatically.
+before running it. The script requires Apple command-line tools for signature and
+notarization verification; the normal DMG installation does not. A failed download returns an error; it never builds source automatically.
 
 The Homebrew tap uses the released universal DMG. Once the cask change is integrated:
 
@@ -53,7 +54,7 @@ or ~/Applications for the script.
 Data remains in ~/Library/Application Support/app.maxxit.desktop. Remove that
 folder only if you want to erase preferences, projects, and observations.
 Removing the app does not itself delete cloud records or the hosted account.
-Homebrew uninstall also retains user data unless you explicitly opt into its zap operation.
+The cask has no data-erasure hook; Homebrew uninstall retains user data.
 
 ## Troubleshooting
 
