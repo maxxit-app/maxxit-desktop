@@ -1,0 +1,27 @@
+name: Feature request
+description: Describe a user problem and desired result
+labels: [enhancement, needs-triage]
+body:
+  - type: checkboxes
+    id: search
+    attributes:
+      label: Existing requests
+      options:
+        - label: I searched existing issues and the contribution scope.
+          required: true
+  - type: textarea
+    id: problem
+    attributes: { label: Problem, description: Who encounters it and when? }
+    validations: { required: true }
+  - type: textarea
+    id: workaround
+    attributes: { label: Current workaround }
+    validations: { required: true }
+  - type: textarea
+    id: result
+    attributes:
+      {
+        label: Desired result,
+        description: Explain the outcome rather than prescribing an implementation.,
+      }
+    validations: { required: true }

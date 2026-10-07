@@ -15,6 +15,9 @@ pub fn config_path() -> Result<PathBuf, String> {
     Ok(root.join("settings.json"))
 }
 fn read_json(path: &Path) -> Result<Value, String> {
+    if fs::symlink_metadata(path).is_ok_and(|meta| meta.file_type().is_symlink()) {
+        return Err("Maxxit will not change a symlinked settings or bridge file".into());
+    }
     match fs::read(path) {
         Ok(bytes) => serde_json::from_slice(&bytes).map_err(|_| {
             "Existing Claude settings are not valid JSON. Fix them before connecting.".into()
@@ -54,8 +57,10 @@ fn quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 pub fn preview(data_dir: &Path) -> Result<Value, String> {
-    let config = config_path()?;
-    let raw = read_json(&config)?;
+    preview_at(data_dir, &config_path()?)
+}
+fn preview_at(data_dir: &Path, config: &Path) -> Result<Value, String> {
+    let raw = read_json(config)?;
     let executable = std::env::current_exe().map_err(|e| e.to_string())?;
     let command = format!(
         "{} --capture-claude {}",
@@ -67,18 +72,19 @@ pub fn preview(data_dir: &Path) -> Result<Value, String> {
     )
 }
 pub fn install(data_dir: &Path) -> Result<(), String> {
-    let preview = preview(data_dir)?;
-    let config = config_path()?;
-    let mut raw = read_json(&config)?;
+    install_at(data_dir, &config_path()?)
+}
+fn install_at(data_dir: &Path, config: &Path) -> Result<(), String> {
+    let preview = preview_at(data_dir, config)?;
+    let mut raw = read_json(config)?;
     if !raw.is_object() {
         return Err("Claude settings must be a JSON object".into());
     }
     let backup_path = data_dir.join("claude-bridge.json");
-    if let Ok(previous) = read_json(&backup_path) {
-        if let Some(command) = previous.get("installedCommand").and_then(Value::as_str) {
-            if raw.pointer("/statusLine/command").and_then(Value::as_str) == Some(command) {
-                return Ok(());
-            }
+    let previous = read_json(&backup_path)?;
+    if let Some(command) = previous.get("installedCommand").and_then(Value::as_str) {
+        if raw.pointer("/statusLine/command").and_then(Value::as_str) == Some(command) {
+            return Ok(());
         }
     }
     let old = raw.get("statusLine").cloned().unwrap_or(Value::Null);
@@ -93,14 +99,20 @@ pub fn install(data_dir: &Path) -> Result<(), String> {
     status_line["type"] = json!("command");
     status_line["command"] = preview["command"].clone();
     raw["statusLine"] = status_line;
-    atomic_json(&config, &raw)
+    atomic_json(config, &raw)
 }
 pub fn uninstall(data_dir: &Path) -> Result<(), String> {
+    uninstall_at(data_dir, &config_path()?)
+}
+fn uninstall_at(data_dir: &Path, approved_config: &Path) -> Result<(), String> {
     let backup = read_json(&data_dir.join("claude-bridge.json"))?;
     let Some(path) = backup.get("settingsPath").and_then(Value::as_str) else {
         return Ok(());
     };
     let config = PathBuf::from(path);
+    if config != approved_config {
+        return Err("Claude configuration location changed. Review the bridge manually.".into());
+    }
     let mut raw = read_json(&config)?;
     if raw.pointer("/statusLine/command") != backup.get("installedCommand") {
         return Err("Claude settings changed after connection. Maxxit left them unchanged. Review your status-line command manually.".into());
@@ -220,6 +232,59 @@ mod tests {
         assert!(!String::from_utf8(first)
             .unwrap()
             .contains("must not persist"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn bridge_install_is_repeatable_and_restores_previous_output() {
+        let root = std::env::temp_dir().join(uuid::Uuid::new_v4().to_string());
+        fs::create_dir_all(&root).unwrap();
+        let config = root.join("settings.json");
+        let data = root.join("owned-data");
+        let previous =
+            json!({"statusLine":{"type":"command","command":"printf safe"},"unrelated":true});
+        atomic_json(&config, &previous).unwrap();
+        install_at(&data, &config).unwrap();
+        let first = fs::read(&config).unwrap();
+        install_at(&data, &config).unwrap();
+        assert_eq!(first, fs::read(&config).unwrap());
+        uninstall_at(&data, &config).unwrap();
+        assert_eq!(read_json(&config).unwrap(), previous);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn newer_user_settings_and_unreadable_backup_are_preserved() {
+        let root = std::env::temp_dir().join(uuid::Uuid::new_v4().to_string());
+        fs::create_dir_all(&root).unwrap();
+        let config = root.join("settings.json");
+        let data = root.join("owned-data");
+        atomic_json(&config, &json!({})).unwrap();
+        install_at(&data, &config).unwrap();
+        let changed = json!({"statusLine":{"type":"command","command":"printf newer"}});
+        atomic_json(&config, &changed).unwrap();
+        assert!(uninstall_at(&data, &config).is_err());
+        assert_eq!(read_json(&config).unwrap(), changed);
+        fs::write(data.join("claude-bridge.json"), "broken JSON").unwrap();
+        assert!(install_at(&data, &config).is_err());
+        assert_eq!(read_json(&config).unwrap(), changed);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn symlinked_settings_are_never_replaced() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(uuid::Uuid::new_v4().to_string());
+        fs::create_dir_all(&root).unwrap();
+        let original = root.join("original.json");
+        let config = root.join("settings.json");
+        fs::write(&original, "{}").unwrap();
+        symlink(&original, &config).unwrap();
+        assert!(install_at(&root.join("data"), &config).is_err());
+        assert!(fs::symlink_metadata(&config)
+            .unwrap()
+            .file_type()
+            .is_symlink());
         fs::remove_dir_all(root).unwrap();
     }
 }

@@ -101,6 +101,16 @@ impl Default for Settings {
 }
 
 pub fn normalize_window(bucket: &str, key: &str, value: &Value, claude: bool) -> UsageWindow {
+    normalize_window_at(bucket, key, value, claude, Utc::now())
+}
+
+pub fn normalize_window_at(
+    bucket: &str,
+    key: &str,
+    value: &Value,
+    claude: bool,
+    now: chrono::DateTime<Utc>,
+) -> UsageWindow {
     let used = value
         .get(if claude {
             "used_percentage"
@@ -121,7 +131,7 @@ pub fn normalize_window(bucket: &str, key: &str, value: &Value, claude: bool) ->
             .and_then(Value::as_i64)
             .filter(|n| *n > 0)
     };
-    let availability = if reset.is_some_and(|r| r <= Utc::now()) {
+    let availability = if reset.is_some_and(|r| r <= now) {
         "expired"
     } else if used.is_some() && reset.is_some() {
         "available"
@@ -176,5 +186,27 @@ mod tests {
             false,
         );
         assert_eq!(w.availability, "missing");
+    }
+    #[test]
+    fn reset_expiry_uses_the_injected_utc_clock() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-10-25T01:30:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let value = serde_json::json!({"usedPercent":30,"resetsAt":now.timestamp()+60,"windowDurationMins":300});
+        assert_eq!(
+            normalize_window_at("codex", "primary", &value, false, now).availability,
+            "available"
+        );
+        assert_eq!(
+            normalize_window_at(
+                "codex",
+                "primary",
+                &value,
+                false,
+                now + chrono::Duration::minutes(2)
+            )
+            .availability,
+            "expired"
+        );
     }
 }

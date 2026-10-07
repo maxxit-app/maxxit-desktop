@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated dependencies, build output, and binary image/font assets"
+paths = [
+  '(?:^|/)node_modules/',
+  '(?:^|/)src-tauri/target/',
+  '(?:^|/)dist/',
+  '(?:^|/)docs/screenshots/',
+  '(?:^|/)(?:assets|maxxit-icon|public/fonts)/',
+]

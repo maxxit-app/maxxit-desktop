@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability privately
+    url: https://github.com/maxxit-app/maxxit-desktop/security/advisories/new
+    about: Security reports must not go into public issues.
+  - name: Account and billing support
+    url: https://maxxit.app
+    about: Email contact@maxxit.app for account, payment, or personal data requests.

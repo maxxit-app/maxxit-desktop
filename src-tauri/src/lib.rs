@@ -60,7 +60,7 @@ struct Runtime {
 }
 fn collect(runtime: &Runtime) -> Result<Value, String> {
     let store = runtime.store.lock().map_err(|_| "Storage unavailable")?;
-    let settings = store.settings();
+    let settings = store.settings()?;
     let codex = if settings.codex_enabled {
         providers::codex_local()
     } else {
@@ -89,11 +89,11 @@ async fn snapshot(runtime: State<'_, Runtime>) -> Result<Value, String> {
     Ok(data)
 }
 fn runtime_settings(runtime: &Runtime) -> Result<Settings, String> {
-    Ok(runtime
+    runtime
         .store
         .lock()
         .map_err(|_| "Storage unavailable")?
-        .settings())
+        .settings()
 }
 #[tauri::command]
 async fn cloud_start(
@@ -134,7 +134,7 @@ async fn cloud_disconnect(runtime: State<'_, Runtime>) -> Result<(), String> {
     cloud::request(&settings, "collector/disconnect", Some(json!({})), true).await?;
     cloud::forget_credential()?;
     let store = runtime.store.lock().map_err(|_| "Storage unavailable")?;
-    let mut settings = store.settings();
+    let mut settings = store.settings()?;
     settings.cloud_sync = false;
     settings.ai_consent = false;
     settings.email = false;
@@ -249,7 +249,7 @@ fn connect_provider(runtime: State<'_, Runtime>, provider: String) -> Result<(),
         return Err("Unknown provider".into());
     }
     let store = runtime.store.lock().map_err(|_| "Storage unavailable")?;
-    let mut settings = store.settings();
+    let mut settings = store.settings()?;
     if provider == "claude" {
         settings.claude_enabled = true;
     } else {
@@ -265,7 +265,7 @@ fn disconnect_provider(runtime: State<'_, Runtime>, provider: String) -> Result<
         return Err("Unknown provider".into());
     }
     let store = runtime.store.lock().map_err(|_| "Storage unavailable")?;
-    let mut settings = store.settings();
+    let mut settings = store.settings()?;
     if provider == "claude" {
         settings.claude_enabled = false;
     } else {
@@ -596,7 +596,11 @@ pub fn run() {
                 if runtime
                     .store
                     .lock()
-                    .map(|s| s.settings().background)
+                    .map(|s| {
+                        s.settings()
+                            .map(|settings| settings.background)
+                            .unwrap_or(true)
+                    })
                     .unwrap_or(true)
                 {
                     api.prevent_close();
