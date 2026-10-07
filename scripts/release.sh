@@ -31,6 +31,7 @@ import { readFileSync } from "node:fs";
 import { changelogNotes } from "./scripts/release-lib.mjs";
 console.log(changelogNotes(readFileSync("CHANGELOG.md", "utf8"), process.argv[2]));
 JS
+  node scripts/sentry-artifacts.mjs upload "$app/Contents/MacOS/maxxit"
   gh release create "v$version" --repo maxxit-app/maxxit-desktop --target "$sha" --draft --title "Maxxit $version" --notes-file "$output/release-notes.md" "$output/Maxxit-universal.app.tar.gz" "$output/Maxxit-universal.app.tar.gz.sig" "$output/Maxxit-universal.dmg" "$output/latest.json" "$output/SHA256SUMS"
   echo 'Verified draft created. Complete native installation and upgrade acceptance before publication.'
 fi

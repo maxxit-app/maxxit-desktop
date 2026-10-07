@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
+import { invoke } from "./observability";
 import { Activity, Download } from "lucide-react";
 import { tokenSeries, tokenSummary, type TokenDay } from "./analytics";
 

@@ -1,3 +1,9 @@
+import {
+  diagnosticContext,
+  recordDiagnostic,
+  captureDiagnostic,
+  flushDiagnostics,
+} from "./observability";
 import { isTauri } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -47,16 +53,27 @@ export class UpdateController {
     if (this.busy || this.state.status === "ready") return;
     this.busy = true;
     this.set({ ...this.state, status: "checking", error: undefined });
+    const context = diagnosticContext("updates");
+    recordDiagnostic("update.check.started", context, { stage: "check" });
     try {
       const update = await this.checkUpdate();
-      await this.pending?.close().catch(() => {});
+      await this.pending
+        ?.close()
+        .catch((error) =>
+          captureDiagnostic(error, "update.cleanup.failed", context),
+        );
       this.pending = update;
+      if (update)
+        recordDiagnostic("update.available", context, {
+          target_version: update.version,
+        });
       this.set(
         update
           ? { status: "available", version: update.version, notes: update.body }
           : { status: "current" },
       );
-    } catch {
+    } catch (error) {
+      captureDiagnostic(error, "update.check.failed", context);
       this.set({
         ...this.state,
         status: "error",
@@ -76,6 +93,12 @@ export class UpdateController {
       progress: undefined,
       error: undefined,
     });
+    const context = diagnosticContext("updates");
+    recordDiagnostic("update.download.started", context, {
+      stage: "download",
+      target_version: this.pending.version,
+    });
+    let stage = "download";
     let total = 0;
     let downloaded = 0;
     try {
@@ -86,6 +109,13 @@ export class UpdateController {
             downloaded = 0;
           }
           if (event.event === "Progress") downloaded += event.data.chunkLength;
+          if (event.event === "Finished") {
+            stage = "install";
+            recordDiagnostic("update.download.completed", context, {
+              stage: "install",
+              bytes: downloaded,
+            });
+          }
           this.set({
             ...this.state,
             status: event.event === "Finished" ? "installing" : "downloading",
@@ -98,10 +128,27 @@ export class UpdateController {
         { timeout: 120000 },
       );
       this.set({ ...this.state, status: "ready", progress: 100 });
+      recordDiagnostic("update.install.completed", context, {
+        stage: "install",
+        target_version: this.pending.version,
+      });
       // A failure to release the IPC resource must not repeat a successful install.
-      await this.pending.close().catch(() => {});
+      await this.pending
+        .close()
+        .catch((error) =>
+          captureDiagnostic(error, "update.cleanup.failed", context),
+        );
       this.pending = null;
-    } catch {
+    } catch (error) {
+      captureDiagnostic(
+        error,
+        String(error).toLowerCase().includes("signature")
+          ? "update.verify.failed"
+          : stage === "download"
+            ? "update.download.failed"
+            : "update.install.failed",
+        context,
+      );
       this.set({
         ...this.state,
         status: "error",
@@ -115,9 +162,13 @@ export class UpdateController {
   async restart() {
     if (this.busy || this.state.status !== "ready") return;
     this.busy = true;
+    const context = diagnosticContext("updates");
+    recordDiagnostic("update.relaunch.started", context, { stage: "relaunch" });
     try {
+      await flushDiagnostics();
       await this.restartApp();
-    } catch {
+    } catch (error) {
+      captureDiagnostic(error, "update.relaunch.failed", context);
       this.set({
         ...this.state,
         error:

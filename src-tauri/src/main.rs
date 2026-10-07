@@ -8,10 +8,29 @@ fn main() {
         );
         return;
     }
-    if std::env::args().any(|arg| arg == "--capture-claude") {
-        if let Err(error) = maxxit_lib::bridge::capture() {
-            eprintln!("Maxxit usage bridge: {error}");
+    #[cfg(debug_assertions)]
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(index) = args.iter().position(|v| v == "--diagnostics-probe") {
+            let mode = args.get(index + 1).expect("Probe mode");
+            let dir = args.get(index + 2).expect("Isolated probe directory");
+            maxxit_lib::observability::probe(dir.into(), mode);
+            return;
         }
+    }
+    let reporter =
+        sentry::integrations::minidump::MinidumpIntegration::new().is_crash_reporter_process();
+    if let Some(directory) = maxxit_lib::observability::data_directory() {
+        maxxit_lib::observability::initialize(directory, reporter);
+    }
+    if reporter {
+        return;
+    }
+    if std::env::args().any(|arg| arg == "--capture-claude") {
+        let _ = maxxit_lib::observability::observe(
+            maxxit_lib::observability::Operation::new("bridge_capture", "bridge", None),
+            maxxit_lib::bridge::capture,
+        );
         return;
     }
     maxxit_lib::run();

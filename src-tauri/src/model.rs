@@ -119,6 +119,20 @@ pub fn normalize_window_at(
         })
         .and_then(Value::as_f64)
         .filter(|n| n.is_finite() && *n >= 0.0 && *n <= 100.0);
+    if used.is_none()
+        && value
+            .get(if claude {
+                "used_percentage"
+            } else {
+                "usedPercent"
+            })
+            .is_some_and(|v| !v.is_null())
+    {
+        crate::observability::failure(
+            "provider.normalization.rejected",
+            serde_json::json!({"provider":if claude {"claude"}else{"codex"},"stage":"normalize","rejected_count":1}),
+        );
+    }
     let reset = value
         .get(if claude { "resets_at" } else { "resetsAt" })
         .and_then(Value::as_i64)

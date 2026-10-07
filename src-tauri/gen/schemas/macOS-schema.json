@@ -393,6 +393,48 @@
           "markdownDescription": "Enables the connect_provider command without any pre-configured scope."
         },
         {
+          "description": "Enables the diagnostics_consent command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-diagnostics-consent",
+          "markdownDescription": "Enables the diagnostics_consent command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the diagnostics_export command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-diagnostics-export",
+          "markdownDescription": "Enables the diagnostics_export command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the diagnostics_flush command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-diagnostics-flush",
+          "markdownDescription": "Enables the diagnostics_flush command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the diagnostics_health command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-diagnostics-health",
+          "markdownDescription": "Enables the diagnostics_health command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the diagnostics_preview command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-diagnostics-preview",
+          "markdownDescription": "Enables the diagnostics_preview command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the diagnostics_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-diagnostics-record",
+          "markdownDescription": "Enables the diagnostics_record command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the diagnostics_test command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-diagnostics-test",
+          "markdownDescription": "Enables the diagnostics_test command without any pre-configured scope."
+        },
+        {
           "description": "Enables the disconnect_provider command without any pre-configured scope.",
           "type": "string",
           "const": "allow-disconnect-provider",
@@ -493,6 +535,48 @@
           "type": "string",
           "const": "deny-connect-provider",
           "markdownDescription": "Denies the connect_provider command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the diagnostics_consent command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-diagnostics-consent",
+          "markdownDescription": "Denies the diagnostics_consent command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the diagnostics_export command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-diagnostics-export",
+          "markdownDescription": "Denies the diagnostics_export command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the diagnostics_flush command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-diagnostics-flush",
+          "markdownDescription": "Denies the diagnostics_flush command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the diagnostics_health command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-diagnostics-health",
+          "markdownDescription": "Denies the diagnostics_health command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the diagnostics_preview command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-diagnostics-preview",
+          "markdownDescription": "Denies the diagnostics_preview command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the diagnostics_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-diagnostics-record",
+          "markdownDescription": "Denies the diagnostics_record command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the diagnostics_test command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-diagnostics-test",
+          "markdownDescription": "Denies the diagnostics_test command without any pre-configured scope."
         },
         {
           "description": "Denies the disconnect_provider command without any pre-configured scope.",

@@ -13,3 +13,5 @@ Follow docs/diagnostics.md for evidence you can safely attach.
 
 Support is maintained on a best-effort basis. A response is not a promise of a fix
 date. The maintainer reviews the public issue queue weekly when available.
+
+For desktop errors, Settings > Diagnostic reporting shows delivery health and can send a synthetic test report. Include its event ID in a bug report. Preview the sanitized support JSON before exporting it. See [Sentry setup and limits](docs/sentry.md).
