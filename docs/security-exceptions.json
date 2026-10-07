@@ -1,0 +1,18 @@
+[
+  {
+    "id": "RUSTSEC-2024-0370",
+    "crate": "proc-macro-error",
+    "version": "1.0.4",
+    "owner": "Akhouad",
+    "expires": "2027-01-07",
+    "reason": "Linux GTK transitive dependency in the all-platform lockfile. Absent from both supported Mac compilation graphs. Tauri upstream must replace it before any Linux support."
+  },
+  {
+    "id": "RUSTSEC-2024-0429",
+    "crate": "glib",
+    "version": "0.18.5",
+    "owner": "Akhouad",
+    "expires": "2027-01-07",
+    "reason": "Linux GTK transitive dependency; affected VariantStrIter code is absent from both supported Mac builds. Reassess on upstream changes or any additional platform."
+  }
+]
