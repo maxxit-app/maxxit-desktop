@@ -1,6 +1,8 @@
+import DiagnosticsSettings from "./DiagnosticsSettings";
 import { version } from "../package.json";
 import { useCallback, useEffect, useState } from "react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
+import { invoke, captureDiagnostic } from "./observability";
 import { listen } from "@tauri-apps/api/event";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
@@ -168,6 +170,7 @@ export default function App() {
       try {
         setData(await invoke<Snapshot>("snapshot"));
       } catch (e) {
+        captureDiagnostic(e);
         setMessage(String(e));
       }
     }
@@ -177,12 +180,14 @@ export default function App() {
     if (native)
       void isEnabled()
         .then(setAutostart)
-        .catch(() => {});
+        .catch((error) => captureDiagnostic(error, "autostart.read.failed"));
     let cleanup: (() => void) | undefined;
     if (native)
-      void listen("usage-updated", () => void refresh()).then((f) => {
-        cleanup = f;
-      });
+      void listen("usage-updated", () => void refresh())
+        .then((f) => {
+          cleanup = f;
+        })
+        .catch((error) => captureDiagnostic(error, "ui.listener.failed"));
     const timer = setInterval(() => void refresh(), 60000);
     return () => {
       clearInterval(timer);
@@ -193,12 +198,12 @@ export default function App() {
     if (!native) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void listen<string>("navigate-to", (event) => setTab(event.payload)).then(
-      (fn) => {
+    void listen<string>("navigate-to", (event) => setTab(event.payload))
+      .then((fn) => {
         if (disposed) fn();
         else unlisten = fn;
-      },
-    );
+      })
+      .catch((error) => captureDiagnostic(error, "ui.listener.failed"));
     return () => {
       disposed = true;
       unlisten?.();
@@ -207,13 +212,17 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = data.settings.theme;
   }, [data.settings.theme]);
-  async function action(callback: () => Promise<void>) {
+  async function action(
+    callback: () => Promise<void>,
+    diagnosticName = "ui.command.failed",
+  ) {
     setBusy(true);
     setMessage("");
     try {
       await callback();
       await refresh();
     } catch (e) {
+      captureDiagnostic(e, diagnosticName);
       setMessage(String(e));
     } finally {
       setBusy(false);
@@ -750,6 +759,7 @@ export default function App() {
           {tab === "Settings" && (
             <div className="settings-grid">
               <UpdateNotice settings />
+              <DiagnosticsSettings />
               <section className="card settings-card">
                 <h2>On this Mac</h2>
                 <label className="field-row">
@@ -791,7 +801,7 @@ export default function App() {
                       if (value) await enable();
                       else await disable();
                       setAutostart(value);
-                    })
+                    }, "autostart.change.failed")
                   }
                 />
               </section>

@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/sentry-artifacts.mjs prepare",
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
@@ -26,9 +26,11 @@
     "check": "pnpm version:check && pnpm lint && pnpm format:check && pnpm build && pnpm test && pnpm test:tooling && pnpm native:format && pnpm native:lint && pnpm native:test",
     "diagnostics": "node scripts/diagnostics.mjs",
     "audit:native": "node scripts/audit.mjs",
-    "licenses:generate": "node scripts/licenses.mjs"
+    "licenses:generate": "node scripts/licenses.mjs",
+    "sentry:upload": "node scripts/sentry-artifacts.mjs upload"
   },
   "dependencies": {
+    "@sentry/react": "10.75.0",
     "@tauri-apps/api": "2.12.1",
     "@tauri-apps/plugin-autostart": "2.5.1",
     "@tauri-apps/plugin-dialog": "2.6.0",
@@ -40,6 +42,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@sentry/cli": "3.7.0",
     "@tauri-apps/cli": "2.12.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

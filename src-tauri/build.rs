@@ -1,4 +1,25 @@
 fn main() {
+    for name in ["MAXXIT_SENTRY_DSN", "MAXXIT_SENTRY_ENVIRONMENT"] {
+        println!("cargo:rerun-if-env-changed={name}");
+    }
+    let config: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string("../sentry.config.json")
+            .expect("Read public Sentry configuration"),
+    )
+    .expect("Valid Sentry configuration");
+    println!("cargo:rerun-if-changed=../sentry.config.json");
+    let dsn = std::env::var("MAXXIT_SENTRY_DSN")
+        .unwrap_or_else(|_| config["dsn"].as_str().unwrap_or("").to_owned());
+    assert!(!dsn.contains(['\n', '\r']), "Invalid Sentry DSN");
+    println!("cargo:rustc-env=MAXXIT_SENTRY_DSN={dsn}");
+    if let Ok(value) = std::env::var("MAXXIT_SENTRY_ENVIRONMENT") {
+        assert!(
+            ["production", "staging", "development"].contains(&value.as_str()),
+            "Invalid Sentry environment"
+        );
+        println!("cargo:rustc-env=MAXXIT_SENTRY_ENVIRONMENT={value}");
+    }
+
     println!("cargo:rerun-if-env-changed=MAXXIT_SOURCE_COMMIT");
     let sha = std::env::var("MAXXIT_SOURCE_COMMIT")
         .ok()
@@ -39,6 +60,13 @@ fn main() {
     }
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "diagnostics_record",
+            "diagnostics_health",
+            "diagnostics_consent",
+            "diagnostics_preview",
+            "diagnostics_test",
+            "diagnostics_flush",
+            "diagnostics_export",
             "snapshot",
             "export_token_csv",
             "tray_action",

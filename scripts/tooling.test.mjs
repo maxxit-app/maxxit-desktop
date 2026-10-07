@@ -163,10 +163,14 @@ test("tray permissions cannot mutate settings, credentials or install updates", 
     "allow-snapshot",
     "allow-tray-action",
     "allow-tray-resize",
+    "allow-diagnostics-record",
+    "allow-diagnostics-health",
   ]);
   assert.ok(
     !tray.permissions.some((permission) =>
-      /updater|cloud|settings/.test(permission),
+      /updater|cloud|settings|diagnostics-consent|diagnostics-export|diagnostics-test|diagnostics-flush/.test(
+        permission,
+      ),
     ),
   );
 });

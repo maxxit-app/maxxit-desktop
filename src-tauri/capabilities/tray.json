@@ -9,6 +9,8 @@
     "core:event:default",
     "allow-snapshot",
     "allow-tray-action",
-    "allow-tray-resize"
+    "allow-tray-resize",
+    "allow-diagnostics-record",
+    "allow-diagnostics-health"
   ]
 }

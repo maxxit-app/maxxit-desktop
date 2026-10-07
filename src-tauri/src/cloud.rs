@@ -1,4 +1,5 @@
 use crate::model::Settings;
+use crate::observability::{failure, map_error, record};
 use serde_json::{json, Value};
 static CREDENTIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 trait Credentials {
@@ -21,7 +22,10 @@ impl Credentials for Keychain {
         keyring::Entry::new("app.maxxit.desktop", "device")
             .map_err(|_| "Mac Keychain could not be opened")?
             .set_password(token)
-            .map_err(|_| "Could not save the device token in Mac Keychain".into())
+            .map_err(|_| {
+                failure("keychain.write.failed", json!({"stage":"write"}));
+                "Could not save the device token in Mac Keychain".into()
+            })
     }
     fn remove(&self) -> Result<(), String> {
         let entry = keyring::Entry::new("app.maxxit.desktop", "device")
@@ -50,9 +54,13 @@ fn save_verified(store: &impl Credentials, token: &str) -> Result<(), String> {
         return Ok(());
     }
     if let Some(previous) = previous {
-        store
-            .write(&previous)
-            .map_err(|_| "Keychain verification and credential restoration failed")?;
+        store.write(&previous).map_err(|_| {
+            failure(
+                "keychain.restore.failed",
+                json!({"stage":"restore","restored":false}),
+            );
+            "Keychain verification and credential restoration failed"
+        })?;
     }
     Err(
         "Keychain write could not be verified. Previous credentials were retained when available."
@@ -63,19 +71,23 @@ pub fn credential() -> Result<Option<String>, String> {
     let _lock = CREDENTIAL_LOCK
         .lock()
         .map_err(|_| "Credential storage unavailable")?;
-    Keychain.read()
+    Keychain
+        .read()
+        .map_err(|e| map_error("keychain.read.failed", "read", e))
 }
 pub fn save_credential(token: &str) -> Result<(), String> {
     let _lock = CREDENTIAL_LOCK
         .lock()
         .map_err(|_| "Credential storage unavailable")?;
-    save_verified(&Keychain, token)
+    save_verified(&Keychain, token).map_err(|e| map_error("keychain.verify.failed", "verify", e))
 }
 pub fn forget_credential() -> Result<(), String> {
     let _lock = CREDENTIAL_LOCK
         .lock()
         .map_err(|_| "Credential storage unavailable")?;
-    Keychain.remove()
+    Keychain
+        .remove()
+        .map_err(|e| map_error("keychain.delete.failed", "delete", e))
 }
 pub fn origin(settings: &Settings) -> Result<String, String> {
     let url = url::Url::parse(&settings.api_origin).map_err(|_| "Invalid API origin")?;
@@ -112,11 +124,12 @@ pub async fn request(
     body: Option<Value>,
     authenticated: bool,
 ) -> Result<Value, String> {
+    let started = std::time::Instant::now();
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| map_error("cloud.request.failed", "http", e))?;
     let retryable = body.is_none();
     let mut request = if body.is_some() {
         client.post(format!("{}/v1/{path}", origin(settings)?))
@@ -131,6 +144,7 @@ pub async fn request(
     }
     let mut attempt = 0;
     let mut response = loop {
+        let attempt_started = std::time::Instant::now();
         let result = request
             .try_clone()
             .ok_or("Could not prepare service request")?
@@ -143,12 +157,22 @@ pub async fn request(
         let jitter = u64::from(uuid::Uuid::new_v4().as_bytes()[0]);
         if retryable {
             if let Some(delay) = retry_delay(attempt, status, jitter) {
+                record(
+                    "cloud.request.retry",
+                    json!({"route":path,"method":"GET","attempt":attempt+1,"status":status,"elapsed_ms":attempt_started.elapsed().as_millis() as u64,"retry_delay_ms":delay.as_millis() as u64}),
+                );
                 attempt += 1;
                 tokio::time::sleep(delay).await;
                 continue;
             }
         }
-        break result.map_err(|_| "Maxxit cloud is unavailable. Local analytics still work.")?;
+        break result.map_err(|e| {
+            failure(
+                "cloud.request.failed",
+                json!({"route":path,"attempt":attempt,"stage":"http","timeout":e.is_timeout(),"connection_error":e.is_connect(),"timeout_ms":15000,"elapsed_ms":started.elapsed().as_millis() as u64}),
+            );
+            "Maxxit cloud is unavailable. Local analytics still work."
+        })?;
     };
     let status = response.status();
     const LIMIT: usize = 2_000_000;
@@ -156,26 +180,54 @@ pub async fn request(
         .content_length()
         .is_some_and(|size| size > LIMIT as u64)
     {
+        failure(
+            "cloud.response.too_large",
+            json!({"route":path,"status":status.as_u16()}),
+        );
         return Err("Service response exceeds its limit".into());
     }
     let mut bytes = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|_| "Invalid service response")?
-    {
+    while let Some(chunk) = response.chunk().await.map_err(|_| {
+        failure(
+            "cloud.response.invalid",
+            json!({"route":path,"status":status.as_u16(),"stage":"response"}),
+        );
+        "Invalid service response"
+    })? {
         if bytes.len() + chunk.len() > LIMIT {
+            failure(
+                "cloud.response.too_large",
+                json!({"route":path,"status":status.as_u16()}),
+            );
             return Err("Service response exceeds its limit".into());
         }
         bytes.extend_from_slice(&chunk);
     }
-    let value: Value = serde_json::from_slice(&bytes).map_err(|_| "Invalid service response")?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|_| {
+        failure(
+            "cloud.response.invalid",
+            json!({"route":path,"status":status.as_u16(),"stage":"response"}),
+        );
+        "Invalid service response"
+    })?;
     if !status.is_success() {
+        failure(
+            if status.as_u16() == 401 || status.as_u16() == 403 {
+                "cloud.auth.revoked"
+            } else {
+                "cloud.request.failed"
+            },
+            json!({"route":path,"status":status.as_u16(),"attempt":attempt,"elapsed_ms":started.elapsed().as_millis() as u64,"timeout_ms":15000,"method":if retryable {"GET"} else {"POST"}}),
+        );
         return Err(value["error"]
             .as_str()
             .unwrap_or("Cloud request failed")
             .into());
     }
+    record(
+        "cloud.request.completed",
+        json!({"route":path,"status":status.as_u16(),"attempt":attempt,"elapsed_ms":started.elapsed().as_millis() as u64,"timeout_ms":15000,"method":if retryable {"GET"} else {"POST"}}),
+    );
     Ok(value)
 }
 pub async fn state(settings: &Settings) -> Value {

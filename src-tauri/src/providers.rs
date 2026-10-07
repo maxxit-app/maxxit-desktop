@@ -1,4 +1,5 @@
 use crate::model::{normalize_window, Observation, ProviderView};
+use crate::observability::failure;
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -9,12 +10,25 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[track_caller]
+fn source_error(provider: &str, error: std::io::Error) {
+    failure(
+        "provider.source.read_failed",
+        json!({"provider":provider,"stage":"read","os_code":error.raw_os_error()}),
+    );
+}
 fn session_files(root: &Path, depth: usize, files: &mut Vec<PathBuf>, examined: &mut usize) {
     if depth > 4 || *examined > 10000 {
         return;
     }
-    let Ok(entries) = fs::read_dir(root) else {
-        return;
+    let entries = match fs::read_dir(root) {
+        Ok(entries) => entries,
+        Err(e) => {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                source_error("codex", e);
+            }
+            return;
+        }
     };
     for entry in entries.flatten() {
         *examined += 1;
@@ -44,15 +58,20 @@ fn records(path: &Path, tail: bool) -> Vec<Value> {
     if !meta.is_file() || meta.file_type().is_symlink() {
         return vec![];
     }
-    let Ok(mut file) = fs::File::open(path) else {
-        return vec![];
+    let mut file = match fs::File::open(path) {
+        Ok(file) => file,
+        Err(e) => {
+            source_error("codex", e);
+            return vec![];
+        }
     };
     let start = if tail {
         meta.len().saturating_sub(512000)
     } else {
         0
     };
-    if file.seek(SeekFrom::Start(start)).is_err() {
+    if let Err(e) = file.seek(SeekFrom::Start(start)) {
+        source_error("codex", e);
         return vec![];
     }
     let mut bytes = Vec::new();
@@ -63,10 +82,29 @@ fn records(path: &Path, tail: bool) -> Vec<Value> {
     {
         return vec![];
     }
-    String::from_utf8_lossy(&bytes)
-        .lines()
-        .skip(if start > 0 { 1 } else { 0 })
-        .filter_map(|s| serde_json::from_str(s).ok())
+    let text = String::from_utf8_lossy(&bytes);
+    let lines: Vec<_> = text.lines().skip(if start > 0 { 1 } else { 0 }).collect();
+    let incomplete_tail = !text.ends_with('\n')
+        && (meta.len() > start + bytes.len() as u64
+            || meta
+                .modified()
+                .ok()
+                .and_then(|t| t.elapsed().ok())
+                .is_some_and(|age| age.as_secs() < 5));
+    lines
+        .iter()
+        .enumerate()
+        .filter_map(|(index, s)| match serde_json::from_str(s) {
+            Ok(value) => Some(value),
+            Err(_) if index + 1 == lines.len() && incomplete_tail && s.starts_with('{') => None,
+            Err(_) => {
+                failure(
+                    "provider.parse.failed",
+                    json!({"provider":"codex","stage":"parse","rejected_count":1}),
+                );
+                None
+            }
+        })
         .collect()
 }
 
@@ -203,7 +241,16 @@ pub fn claude_local(data_dir: &Path, account: &str) -> ProviderView {
     view.account_label = account.into();
     view.status = "waiting".into();
     let path = data_dir.join("claude-usage.json");
-    if let Ok(text) = fs::read_to_string(path) {
+    let text = match fs::read_to_string(path) {
+        Ok(text) => Some(text),
+        Err(e) => {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                source_error("claude", e);
+            }
+            None
+        }
+    };
+    if let Some(text) = text {
         if let Ok(raw) = serde_json::from_str::<Value>(&text) {
             let mut windows = vec![];
             for key in ["five_hour", "seven_day"] {
@@ -229,6 +276,11 @@ pub fn claude_local(data_dir: &Path, account: &str) -> ProviderView {
                     windows,
                 });
             }
+        } else {
+            failure(
+                "provider.parse.failed",
+                json!({"provider":"claude","stage":"parse"}),
+            );
         }
     }
     view.summary = json!({"scope":"Observed on this Mac","historyComplete":false});
