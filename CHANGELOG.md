@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.15 October 12 2026
+
+- Add optional Sentry diagnostic reporting for React, tray, Rust commands, background operations and supported native crashes. Reporting starts off and native memory dumps need separate consent.
+- Preserve sanitized reports while offline, show delivery health, and provide a test report and reviewed support export in Settings.
+- Upload matching JavaScript source maps and universal native symbols privately before publishing a release.
+- Preserve account access checks, encrypted storage, local workflows and reset alerts.
+- Support macOS 14 or later on Apple silicon and Intel. Physical Intel, macOS 14 and all WebKit crash paths remain unverified.
+
 ## 0.1.14 October 8 2026
 
 - Add durable reset-change detection, event history, provider controls and primary-Mac desktop notices.

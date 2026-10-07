@@ -37,6 +37,13 @@
     "allow-account-status",
     "allow-cloud-cancel",
     "allow-legacy-preview",
-    "allow-legacy-import"
+    "allow-legacy-import",
+    "allow-diagnostics-record",
+    "allow-diagnostics-health",
+    "allow-diagnostics-consent",
+    "allow-diagnostics-preview",
+    "allow-diagnostics-test",
+    "allow-diagnostics-flush",
+    "allow-diagnostics-export"
   ]
 }

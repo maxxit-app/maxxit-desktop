@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./observability";
 import { Copy, Download, Trash2 } from "lucide-react";
 import type { LocalRun, Settings, Snapshot } from "./types";
 

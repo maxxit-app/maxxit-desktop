@@ -1,5 +1,11 @@
 mod account;
 pub mod bridge;
+mod diagnostics_queue;
+pub mod observability;
+use observability::{
+    diagnostics_consent, diagnostics_export, diagnostics_flush, diagnostics_health,
+    diagnostics_preview, diagnostics_record, diagnostics_test, CommandError, Operation,
+};
 mod cloud;
 mod model;
 mod projects;
@@ -23,8 +29,7 @@ use storage::Store;
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
-#[tauri::command]
-async fn export_token_csv(
+async fn export_token_csv_inner(
     app: tauri::AppHandle,
     runtime: State<'_, Runtime>,
     csv: String,
@@ -57,7 +62,8 @@ async fn export_token_csv(
             return Ok(false);
         };
         let path = selected.into_path().map_err(|e| e.to_string())?;
-        std::fs::write(path, csv).map_err(|e| e.to_string())?;
+        std::fs::write(path, csv)
+            .map_err(|e| observability::io_error("export.write.failed", "write", e))?;
         Ok(true)
     })
     .await
@@ -186,6 +192,10 @@ fn collect(runtime: &Runtime) -> Result<Value, String> {
     }
     store.prune_runs()?;
     for provider in [&codex, &claude] {
+        observability::record(
+            "provider.collection.completed",
+            json!({"provider":provider.provider}),
+        );
         if let Some(observation) = &provider.observation {
             store.record(observation)?;
         }
@@ -427,12 +437,10 @@ async fn refresh_account(runtime: &Runtime) -> Result<Value, String> {
     }
     Ok(public)
 }
-#[tauri::command]
-async fn account_status(runtime: State<'_, Runtime>) -> Result<Value, String> {
+async fn account_status_inner(runtime: State<'_, Runtime>) -> Result<Value, String> {
     refresh_account(&runtime).await
 }
-#[tauri::command]
-async fn snapshot(runtime: State<'_, Runtime>) -> Result<Value, String> {
+async fn snapshot_inner(runtime: State<'_, Runtime>) -> Result<Value, String> {
     let _sync = SYNC_LOCK.lock().await;
     let mut data = collect(&runtime)?;
     let account = runtime
@@ -449,8 +457,7 @@ async fn snapshot(runtime: State<'_, Runtime>) -> Result<Value, String> {
     );
     Ok(data)
 }
-#[tauri::command]
-async fn cloud_start(
+async fn cloud_start_inner(
     runtime: State<'_, Runtime>,
     usage: bool,
     metadata: bool,
@@ -482,8 +489,7 @@ async fn cloud_start(
         json!({"code":value["code"],"expiresAt":value["expiresAt"],"url":format!("{}/device?code={}",cloud::origin(&settings)?,value["code"].as_str().ok_or("Invalid pairing code")?)}),
     )
 }
-#[tauri::command]
-async fn cloud_redeem(runtime: State<'_, Runtime>) -> Result<(), String> {
+async fn cloud_redeem_inner(runtime: State<'_, Runtime>) -> Result<(), String> {
     let sync = SYNC_LOCK.lock().await;
     let pairing = runtime
         .session_store
@@ -530,8 +536,7 @@ async fn cloud_redeem(runtime: State<'_, Runtime>) -> Result<(), String> {
     store.requeue_sync()?;
     Ok(())
 }
-#[tauri::command]
-async fn cloud_cancel(runtime: State<'_, Runtime>) -> Result<(), String> {
+async fn cloud_cancel_inner(runtime: State<'_, Runtime>) -> Result<(), String> {
     runtime
         .session_store
         .lock()
@@ -540,8 +545,7 @@ async fn cloud_cancel(runtime: State<'_, Runtime>) -> Result<(), String> {
     *runtime.pairing.lock().map_err(|_| "Pairing unavailable")? = None;
     Ok(())
 }
-#[tauri::command]
-async fn cloud_disconnect(
+async fn cloud_disconnect_inner(
     app: tauri::AppHandle,
     runtime: State<'_, Runtime>,
 ) -> Result<(), String> {
@@ -574,8 +578,7 @@ async fn cloud_disconnect(
     *store = Store::open_keychain(&runtime.directory.join("signed-out.sqlite"))?;
     Ok(())
 }
-#[tauri::command]
-fn legacy_preview(runtime: State<'_, Runtime>) -> Result<Value, String> {
+fn legacy_preview_inner(runtime: State<'_, Runtime>) -> Result<Value, String> {
     let _store = runtime.authorized_store()?;
     let legacy = Store::open_keychain(&runtime.directory.join("maxxit.sqlite"))?;
     let owner = runtime
@@ -595,8 +598,10 @@ fn legacy_preview(runtime: State<'_, Runtime>) -> Result<Value, String> {
         json!({"accountId":owner,"projects":legacy.projects()?,"observations":legacy.history()?.len(),"runs":legacy.runs()?.len()}),
     )
 }
-#[tauri::command]
-async fn legacy_import(runtime: State<'_, Runtime>, account_id: String) -> Result<(), String> {
+async fn legacy_import_inner(
+    runtime: State<'_, Runtime>,
+    account_id: String,
+) -> Result<(), String> {
     let _sync = SYNC_LOCK.lock().await;
     let store = runtime.authorized_store()?;
     if store.get("ownerAccountId")? != Some(json!(account_id)) {
@@ -608,8 +613,7 @@ async fn legacy_import(runtime: State<'_, Runtime>, account_id: String) -> Resul
     let legacy = Store::open_keychain(&runtime.directory.join("maxxit.sqlite"))?;
     store.claim_legacy(&legacy, &account_id)
 }
-#[tauri::command]
-async fn cloud_sync(runtime: State<'_, Runtime>) -> Result<(), String> {
+async fn cloud_sync_inner(runtime: State<'_, Runtime>) -> Result<(), String> {
     sync_cloud(&runtime).await
 }
 fn stop_result_relay(runtime: &Runtime) -> Result<(), String> {
@@ -741,8 +745,7 @@ async fn sync_cloud(runtime: &Runtime) -> Result<(), String> {
     }
     Ok(())
 }
-#[tauri::command]
-async fn cloud_action(runtime: State<'_, Runtime>, action: String) -> Result<Value, String> {
+async fn cloud_action_inner(runtime: State<'_, Runtime>, action: String) -> Result<Value, String> {
     if !["checkout", "portal", "generate"].contains(&action.as_str()) {
         return Err("Unknown cloud action".into());
     }
@@ -772,8 +775,7 @@ async fn cloud_action(runtime: State<'_, Runtime>, action: String) -> Result<Val
     }
     result
 }
-#[tauri::command]
-async fn cloud_preferences(runtime: State<'_, Runtime>) -> Result<(), String> {
+async fn cloud_preferences_inner(runtime: State<'_, Runtime>) -> Result<(), String> {
     let settings = runtime_settings(&runtime)?;
     sync_cloud(&runtime).await?;
     let result = cloud::request(&settings,"desktop/preferences",Some(json!({"email":settings.email,"aiConsent":settings.ai_consent,"reminders":settings.cloud_sync,"resetAlerts":settings.reset_alerts})),true).await;
@@ -789,8 +791,7 @@ async fn cloud_preferences(runtime: State<'_, Runtime>) -> Result<(), String> {
         .set("emailPreferencePending", &json!(false))?;
     Ok(())
 }
-#[tauri::command]
-fn open_link(app: tauri::AppHandle, url: String) -> Result<(), String> {
+fn open_link_inner(app: tauri::AppHandle, url: String) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|_| "Invalid link")?;
     if parsed.scheme() != "https"
         || parsed.username() != ""
@@ -807,8 +808,10 @@ fn open_link(app: tauri::AppHandle, url: String) -> Result<(), String> {
         .open_url(url, None::<&str>)
         .map_err(|e| e.to_string())
 }
-#[tauri::command]
-async fn save_settings(runtime: State<'_, Runtime>, mut settings: Settings) -> Result<(), String> {
+async fn save_settings_inner(
+    runtime: State<'_, Runtime>,
+    mut settings: Settings,
+) -> Result<(), String> {
     let _sync = SYNC_LOCK.lock().await;
     if !["local", "hosted"].contains(&settings.generation_mode.as_str()) {
         return Err("Invalid generation mode".into());
@@ -859,13 +862,11 @@ async fn save_settings(runtime: State<'_, Runtime>, mut settings: Settings) -> R
     }
     store.save_settings(&settings)
 }
-#[tauri::command]
-fn claude_preview(runtime: State<'_, Runtime>) -> Result<Value, String> {
+fn claude_preview_inner(runtime: State<'_, Runtime>) -> Result<Value, String> {
     drop(runtime.authorized_store()?);
     bridge::preview(&runtime.directory)
 }
-#[tauri::command]
-fn connect_provider(runtime: State<'_, Runtime>, provider: String) -> Result<(), String> {
+fn connect_provider_inner(runtime: State<'_, Runtime>, provider: String) -> Result<(), String> {
     drop(runtime.authorized_store()?);
     if provider == "claude" {
         bridge::install(&runtime.directory)?;
@@ -881,8 +882,7 @@ fn connect_provider(runtime: State<'_, Runtime>, provider: String) -> Result<(),
     }
     store.save_settings(&settings)
 }
-#[tauri::command]
-fn disconnect_provider(runtime: State<'_, Runtime>, provider: String) -> Result<(), String> {
+fn disconnect_provider_inner(runtime: State<'_, Runtime>, provider: String) -> Result<(), String> {
     drop(runtime.authorized_store()?);
     if provider == "claude" {
         bridge::uninstall(&runtime.directory)?;
@@ -919,8 +919,7 @@ fn update_project(
     project["pinned"] = json!(pinned.unwrap_or(project["pinned"].as_bool().unwrap_or(false)));
     store.save_project(&project)
 }
-#[tauri::command]
-fn save_project(
+fn save_project_inner(
     runtime: State<'_, Runtime>,
     description: String,
     id: String,
@@ -930,29 +929,25 @@ fn save_project(
     let store = runtime.authorized_store()?;
     update_project(&store, &id, description, archived, pinned)
 }
-#[tauri::command]
-async fn remove_project(runtime: State<'_, Runtime>, id: String) -> Result<(), String> {
+async fn remove_project_inner(runtime: State<'_, Runtime>, id: String) -> Result<(), String> {
     let _sync = SYNC_LOCK.lock().await;
     runtime.authorized_store()?.remove_project(&id)
 }
 
-#[tauri::command]
-fn local_analysis(
+fn local_analysis_inner(
     runtime: State<'_, Runtime>,
     project_id: String,
 ) -> Result<workflow::Run, String> {
     runtime.authorized_store()?.create_analysis(&project_id)
 }
-#[tauri::command]
-fn local_task(
+fn local_task_inner(
     runtime: State<'_, Runtime>,
     parent_id: String,
     index: usize,
 ) -> Result<workflow::Run, String> {
     runtime.authorized_store()?.create_task(&parent_id, index)
 }
-#[tauri::command]
-async fn local_import(
+async fn local_import_inner(
     app: tauri::AppHandle,
     runtime: State<'_, Runtime>,
     id: String,
@@ -986,13 +981,11 @@ async fn local_import(
     }
     Ok(())
 }
-#[tauri::command]
-async fn local_remove(runtime: State<'_, Runtime>, id: String) -> Result<(), String> {
+async fn local_remove_inner(runtime: State<'_, Runtime>, id: String) -> Result<(), String> {
     let _sync = SYNC_LOCK.lock().await;
     runtime.authorized_store()?.remove_run(&id)
 }
-#[tauri::command]
-async fn remove_cloud_copies(runtime: State<'_, Runtime>) -> Result<(), String> {
+async fn remove_cloud_copies_inner(runtime: State<'_, Runtime>) -> Result<(), String> {
     let _sync = SYNC_LOCK.lock().await;
     let settings = {
         let store = runtime.authorized_store()?;
@@ -1011,8 +1004,7 @@ async fn remove_cloud_copies(runtime: State<'_, Runtime>) -> Result<(), String> 
     cloud::request(&settings,"desktop/privacy",Some(json!({"generationMode":settings.generation_mode,"completionEvents":settings.result_events,"removeCloudCopies":true})),true).await?;
     Ok(())
 }
-#[tauri::command]
-async fn local_export(
+async fn local_export_inner(
     app: tauri::AppHandle,
     runtime: State<'_, Runtime>,
     id: String,
@@ -1047,8 +1039,7 @@ async fn local_export(
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
-fn tray_resize(window: tauri::WebviewWindow, height: f64) -> Result<(), String> {
+fn tray_resize_inner(window: tauri::WebviewWindow, height: f64) -> Result<(), String> {
     if window.label() != "tray" || !height.is_finite() {
         return Err("Invalid panel size".into());
     }
@@ -1064,8 +1055,7 @@ fn tray_resize(window: tauri::WebviewWindow, height: f64) -> Result<(), String> 
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-fn tray_action(app: tauri::AppHandle, page: String) -> Result<(), String> {
+fn tray_action_inner(app: tauri::AppHandle, page: String) -> Result<(), String> {
     if ![
         "Overview",
         "Analytics",
@@ -1079,7 +1069,7 @@ fn tray_action(app: tauri::AppHandle, page: String) -> Result<(), String> {
         return Err("Unknown panel action".into());
     }
     if let Some(panel) = app.get_webview_window("tray") {
-        let _ = panel.hide();
+        let _ = observability::report(panel.hide());
     }
     if page == "quit" {
         app.exit(0);
@@ -1111,10 +1101,10 @@ fn show_tray_panel(
     }
     if let Some(panel) = app.get_webview_window("tray") {
         if toggle && panel.is_visible().unwrap_or(false) {
-            let _ = panel.hide();
+            let _ = observability::report(panel.hide());
             return;
         }
-        let monitors = panel.available_monitors().unwrap_or_default();
+        let monitors = observability::report(panel.available_monitors()).unwrap_or_default();
         let monitor = monitors.iter().find(|m| {
             position.x >= m.position().x as f64
                 && position.x < (m.position().x as f64 + m.size().width as f64)
@@ -1136,26 +1126,27 @@ fn show_tray_panel(
             let height = (860.0 * scale)
                 .min(work.size.height as f64 - 8.0 * scale)
                 .max(200.0 * scale);
-            let _ = panel.set_size(tauri::PhysicalSize::new(
+            let _ = observability::report(panel.set_size(tauri::PhysicalSize::new(
                 (440.0 * scale) as u32,
                 height as u32,
-            ));
+            )));
             y = y.max(top).min(
                 (work.position.y as f64 + work.size.height as f64 - height - 4.0 * scale).max(top),
             );
         }
-        let _ = panel.set_position(tauri::PhysicalPosition::new(x, y));
-        let _ = panel.show();
-        let _ = panel.set_focus();
+        let _ = observability::report(panel.set_position(tauri::PhysicalPosition::new(x, y)));
+        let _ = observability::report(panel.show());
+        let _ = observability::report(panel.set_focus());
     }
 }
 
 pub fn run() {
+    observability::app_start();
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
+                let _ = observability::report(window.show());
+                let _ = observability::report(window.set_focus());
             }
         }))
         .plugin(tauri_plugin_autostart::Builder::new().build())
@@ -1260,12 +1251,12 @@ pub fn run() {
             tray.on_menu_event(|app, event| match event.id.as_ref() {
                 "open" => {
                     if let Some(w) = app.get_webview_window("main") {
-                        let _ = w.show();
-                        let _ = w.set_focus();
+                        let _ = observability::report(w.show());
+                        let _ = observability::report(w.set_focus());
                     }
                 }
                 "refresh" => {
-                    let _ = app.emit("usage-updated", ());
+                    let _ = observability::report(app.emit("usage-updated", ()));
                 }
                 "quit" => app.exit(0),
                 _ => {}
@@ -1290,7 +1281,10 @@ pub fn run() {
                 loop {
                     let runtime = handle.state::<Runtime>();
                     let _ = refresh_account(&runtime).await;
-                    if let Ok(data) = collect(&runtime) {
+                    if let Ok(data) = observability::observe(
+                        Operation::new("background_cycle", "background", None),
+                        || collect(&runtime),
+                    ) {
                         let preferred =
                             data["settings"]["trayProvider"].as_str().unwrap_or("codex");
                         let provider = data["providers"]
@@ -1306,8 +1300,8 @@ pub fn run() {
                             chrono::Utc::now(),
                         );
                         if let Some(tray) = handle.tray_by_id("maxxit") {
-                            let _ = tray.set_title(Some(&title));
-                            let _ = tray.set_tooltip(Some(tooltip));
+                            let _ = observability::report(tray.set_title(Some(&title)));
+                            let _ = observability::report(tray.set_tooltip(Some(tooltip)));
                         }
                         if let Ok(store) = runtime.authorized_store() {
                             let account = runtime.account.lock().ok();
@@ -1323,7 +1317,7 @@ pub fn run() {
                                 }
                             }
                         }
-                        let _ = handle.emit("usage-updated", ());
+                        let _ = observability::report(handle.emit("usage-updated", ()));
                     }
                     if runtime.authorized_store().is_err() {
                         if let Some(tray) = handle.tray_by_id("maxxit") {
@@ -1332,8 +1326,14 @@ pub fn run() {
                         }
                         let _ = handle.emit("usage-updated", ());
                     }
+                    if let Some(diagnostics) = observability::diagnostics() {
+                        diagnostics.deliver(4).await;
+                    }
                     if runtime.authorized_store().is_ok() {
-                        failures = if sync_cloud(&runtime).await.is_err() {
+                        failures = if observability::observe_async(
+                            Operation::new("background_cycle", "background", None),
+                            sync_cloud(&runtime),
+                        ).await.is_err() {
                             (failures + 1).min(4)
                         } else {
                             0
@@ -1359,6 +1359,7 @@ pub fn run() {
                         .await;
                 }
             });
+            observability::record("app.ready", json!({}));
             Ok(())
         })
         .on_menu_event(|app, event| {
@@ -1382,11 +1383,11 @@ pub fn run() {
                         .state::<Runtime>()
                         .panel_hidden_at
                         .store(chrono::Utc::now().timestamp_millis(), Ordering::Relaxed);
-                    let _ = window.hide();
+                    let _ = observability::report(window.hide());
                 }
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
-                    let _ = window.hide();
+                    let _ = observability::report(window.hide());
                 }
                 return;
             }
@@ -1403,11 +1404,18 @@ pub fn run() {
                     .unwrap_or(true)
                 {
                     api.prevent_close();
-                    let _ = window.hide();
+                    let _ = observability::report(window.hide());
                 }
             }
         })
         .invoke_handler(tauri::generate_handler![
+            diagnostics_record,
+            diagnostics_health,
+            diagnostics_consent,
+            diagnostics_preview,
+            diagnostics_test,
+            diagnostics_flush,
+            diagnostics_export,
             snapshot,
             export_token_csv,
             account_status,
@@ -1436,6 +1444,380 @@ pub fn run() {
             local_export,
             remove_cloud_copies
         ])
-        .run(tauri::generate_context!())
-        .expect("Maxxit could not start");
+        .build(tauri::generate_context!())
+        .unwrap_or_else(|_| {
+            observability::failure("app.start.failed", json!({}));
+            observability::flush_on_exit();
+            std::process::exit(1);
+        })
+        .run(|_, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                observability::app_shutdown();
+                observability::flush_on_exit();
+            }
+        });
+}
+
+#[tauri::command]
+async fn export_token_csv(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    app: tauri::AppHandle,
+    runtime: State<'_, Runtime>,
+    csv: String,
+    days: u32,
+) -> Result<bool, CommandError> {
+    let operation = Operation::new("export_token_csv", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move {
+        export_token_csv_inner(app, runtime, csv, days).await
+    })
+    .await
+}
+
+#[tauri::command]
+async fn snapshot(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<Value, CommandError> {
+    let operation = Operation::new("snapshot", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move { snapshot_inner(runtime).await }).await
+}
+
+// Preserve the existing IPC arguments while adding diagnostic correlation.
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+async fn cloud_start(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    usage: bool,
+    metadata: bool,
+    completion_events: bool,
+    account_sync: Option<bool>,
+    workflow_details: Option<bool>,
+) -> Result<Value, CommandError> {
+    let operation = Operation::new("cloud_start", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move {
+        cloud_start_inner(
+            runtime,
+            usage,
+            metadata,
+            completion_events,
+            account_sync,
+            workflow_details,
+        )
+        .await
+    })
+    .await
+}
+
+#[tauri::command]
+async fn cloud_redeem(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("cloud_redeem", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move { cloud_redeem_inner(runtime).await }).await
+}
+
+#[tauri::command]
+async fn cloud_disconnect(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("cloud_disconnect", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move {
+        cloud_disconnect_inner(app, runtime).await
+    })
+    .await
+}
+
+#[tauri::command]
+async fn cloud_sync(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("cloud_sync", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move { cloud_sync_inner(runtime).await }).await
+}
+
+#[tauri::command]
+async fn cloud_action(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    action: String,
+) -> Result<Value, CommandError> {
+    let operation = Operation::new("cloud_action", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move {
+        cloud_action_inner(runtime, action).await
+    })
+    .await
+}
+
+#[tauri::command]
+async fn cloud_preferences(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("cloud_preferences", window.label(), operation_id.as_deref());
+    observability::observe_async(
+        operation,
+        async move { cloud_preferences_inner(runtime).await },
+    )
+    .await
+}
+
+#[tauri::command]
+fn open_link(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    app: tauri::AppHandle,
+    url: String,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("open_link", window.label(), operation_id.as_deref());
+    observability::observe(operation, || open_link_inner(app, url))
+}
+
+#[tauri::command]
+async fn save_settings(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    settings: Settings,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("save_settings", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move {
+        save_settings_inner(runtime, settings).await
+    })
+    .await
+}
+
+#[tauri::command]
+fn claude_preview(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<Value, CommandError> {
+    let operation = Operation::new("claude_preview", window.label(), operation_id.as_deref());
+    observability::observe(operation, || claude_preview_inner(runtime))
+}
+
+#[tauri::command]
+fn connect_provider(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    provider: String,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("connect_provider", window.label(), operation_id.as_deref());
+    observability::observe(operation, || connect_provider_inner(runtime, provider))
+}
+
+#[tauri::command]
+fn disconnect_provider(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    provider: String,
+) -> Result<(), CommandError> {
+    let operation = Operation::new(
+        "disconnect_provider",
+        window.label(),
+        operation_id.as_deref(),
+    );
+    observability::observe(operation, || disconnect_provider_inner(runtime, provider))
+}
+
+#[tauri::command]
+fn save_project(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    description: String,
+    id: String,
+    archived: Option<bool>,
+    pinned: Option<bool>,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("save_project", window.label(), operation_id.as_deref());
+    observability::observe(operation, || {
+        save_project_inner(runtime, description, id, archived, pinned)
+    })
+}
+
+#[tauri::command]
+async fn remove_project(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    id: String,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("remove_project", window.label(), operation_id.as_deref());
+    observability::observe_async(
+        operation,
+        async move { remove_project_inner(runtime, id).await },
+    )
+    .await
+}
+
+#[tauri::command]
+fn tray_resize(
+    operation_id: Option<String>,
+    window: tauri::WebviewWindow,
+    height: f64,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("tray_resize", window.label(), operation_id.as_deref());
+    observability::observe(operation, || tray_resize_inner(window, height))
+}
+
+#[tauri::command]
+fn tray_action(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    app: tauri::AppHandle,
+    page: String,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("tray_action", window.label(), operation_id.as_deref());
+    observability::observe(operation, || tray_action_inner(app, page))
+}
+
+#[tauri::command]
+async fn account_status(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<Value, CommandError> {
+    let operation = Operation::new("account_status", window.label(), operation_id.as_deref());
+    observability::observe_async(
+        operation,
+        async move { account_status_inner(runtime).await },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn cloud_cancel(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("cloud_cancel", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move { cloud_cancel_inner(runtime).await }).await
+}
+
+#[tauri::command]
+fn legacy_preview(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<Value, CommandError> {
+    let operation = Operation::new("legacy_preview", window.label(), operation_id.as_deref());
+    observability::observe(operation, || legacy_preview_inner(runtime))
+}
+
+#[tauri::command]
+async fn legacy_import(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    account_id: String,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("legacy_import", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move {
+        legacy_import_inner(runtime, account_id).await
+    })
+    .await
+}
+
+#[tauri::command]
+fn local_analysis(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    project_id: String,
+) -> Result<workflow::Run, CommandError> {
+    let operation = Operation::new("local_analysis", window.label(), operation_id.as_deref());
+    observability::observe(operation, || local_analysis_inner(runtime, project_id))
+}
+
+#[tauri::command]
+fn local_task(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    parent_id: String,
+    index: usize,
+) -> Result<workflow::Run, CommandError> {
+    let operation = Operation::new("local_task", window.label(), operation_id.as_deref());
+    observability::observe(operation, || local_task_inner(runtime, parent_id, index))
+}
+
+#[tauri::command]
+async fn local_import(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    app: tauri::AppHandle,
+    runtime: State<'_, Runtime>,
+    id: String,
+    raw: String,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("local_import", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move {
+        local_import_inner(app, runtime, id, raw).await
+    })
+    .await
+}
+
+#[tauri::command]
+async fn local_remove(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+    id: String,
+) -> Result<(), CommandError> {
+    let operation = Operation::new("local_remove", window.label(), operation_id.as_deref());
+    observability::observe_async(
+        operation,
+        async move { local_remove_inner(runtime, id).await },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn local_export(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    app: tauri::AppHandle,
+    runtime: State<'_, Runtime>,
+    id: String,
+    result: bool,
+) -> Result<bool, CommandError> {
+    let operation = Operation::new("local_export", window.label(), operation_id.as_deref());
+    observability::observe_async(operation, async move {
+        local_export_inner(app, runtime, id, result).await
+    })
+    .await
+}
+
+#[tauri::command]
+async fn remove_cloud_copies(
+    window: tauri::WebviewWindow,
+    operation_id: Option<String>,
+    runtime: State<'_, Runtime>,
+) -> Result<(), CommandError> {
+    let operation = Operation::new(
+        "remove_cloud_copies",
+        window.label(),
+        operation_id.as_deref(),
+    );
+    observability::observe_async(operation, async move {
+        remove_cloud_copies_inner(runtime).await
+    })
+    .await
 }
