@@ -45,7 +45,7 @@ bash scripts/release.sh VERSION APP_PATH DMG_PATH
 
 Tauri/Apple credentials must be configured before building. Follow the
 [official macOS signing guide](https://v2.tauri.app/distribute/sign/macos/).
-The manual pipeline is the supported publishing path. CI rehearsal artifacts are
+The manual pipeline is the supported publishing path. Contributor and CI packaging output is
 unsigned and cannot be promoted directly to consumer installers.
 
 release.sh checks source, main CI, version increase, and release notes. It packages
