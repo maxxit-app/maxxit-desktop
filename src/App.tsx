@@ -32,6 +32,7 @@ import {
   type Settings,
 } from "./types";
 import { demoSnapshot } from "./demo";
+import { UpdateNotice } from "./UpdateNotice";
 import { TokenAnalytics } from "./TokenAnalytics";
 
 const native = isTauri();
@@ -322,6 +323,7 @@ export default function App() {
             <h1>{title[tab][0]}</h1>
             <p>{title[tab][1]}</p>
           </header>
+          {tab !== "Settings" && <UpdateNotice />}
           {demo && (
             <div className="notice">
               Demo workspace · sample data for this preview.
@@ -749,6 +751,7 @@ export default function App() {
           )}
           {tab === "Settings" && (
             <div className="settings-grid">
+              <UpdateNotice settings />
               <section className="card settings-card">
                 <h2>On this Mac</h2>
                 <label className="field-row">

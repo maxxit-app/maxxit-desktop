@@ -10,23 +10,11 @@ Built with Tauri 2, React, and Rust. Local analytics are free and work without a
 
 macOS 14 or later, Apple silicon or Intel.
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/maxxit-app/maxxit-desktop/main/scripts/install.sh | bash
-```
+Get the app from [maxxit.app/download](https://maxxit.app/download). Open the DMG, drag Maxxit into Applications, then launch it from Applications. The download button becomes available when a stable Mac installer is published.
 
-Review [the installer](scripts/install.sh) before running it. It verifies the checksum and Apple signature of a published release. While the signed release is pending, it builds the tagged source on your Mac. That first build takes several minutes and needs Homebrew and Apple's command-line developer tools:
+Maxxit checks for updates on launch and hourly while the window is visible. When a newer release is available, an update button appears above your workspace. Download and install it there, then restart when you're ready. You can also check manually in Settings. Updates use Tauri's signature verification.
 
-```sh
-# Install Homebrew using the instructions at https://brew.sh
-xcode-select --install
-# Finish Apple's installation, then run the Maxxit command above.
-```
-
-The app installs into `~/Applications/Maxxit.app`. Node.js and Rust are only needed for the preview's local build. A signed binary release will not require them. No installation step disables Gatekeeper.
-
-```sh
-open "$HOME/Applications/Maxxit.app"
-```
+For contributors who want to build the preview locally, [the optional installer](scripts/install.sh) remains available. It needs Homebrew and Apple's command-line tools while a signed release is pending.
 
 ## Connect your assistants
 
@@ -68,7 +56,7 @@ pnpm desktop:dev
 pnpm build
 pnpm test
 pnpm native:test
-pnpm desktop:build
+pnpm tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'
 ```
 
 Use `pnpm dev` and open `http://127.0.0.1:1420/?demo` for the isolated browser preview. Demo data is never loaded in the native app.
@@ -80,3 +68,11 @@ Disconnect Claude first to restore its previous status-line command. Disconnect 
 ## Security and trademarks
 
 Report vulnerabilities privately to contact@maxxit.app. See [SECURITY.md](SECURITY.md). [MIT license](LICENSE) applies to Maxxit code. Provider names and marks belong to their owners and do not imply endorsement; [asset attribution](public/providers/ATTRIBUTION.md). Manrope is licensed under the included SIL Open Font License.
+
+## Release updates
+
+Production builds enable `bundle.createUpdaterArtifacts`. Set `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in the build environment, along with the Apple signing and notarization credentials. Keep the private updater key outside this repository. The public key in `src-tauri/tauri.conf.json` must match it.
+
+Build a signed, notarized universal app with `pnpm tauri build --target universal-apple-darwin`. Use `scripts/release.sh VERSION APP_PATH DMG_PATH` with `TAURI_SIGNING_PRIVATE_KEY_PATH` to prepare a GitHub draft. The script checks Apple's signature and notarization, verifies both architectures, signs the updater archive, and attaches `latest.json`, the universal DMG, and checksums.
+
+Set the same version in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json` before building. Test the DMG on both architectures and the update from a previous installed version, then publish the draft as a stable release. Draft and prerelease assets do not appear on the website. The website checks GitHub's public latest release and caches it for five minutes. Its installer expects the asset name `Maxxit-universal.dmg`; the updater expects `latest.json` with `darwin-aarch64` and `darwin-x86_64` entries.
