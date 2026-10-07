@@ -12,6 +12,21 @@
     "autostart:allow-enable",
     "autostart:allow-disable",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "allow-snapshot",
+    "allow-export-token-csv",
+    "allow-save-settings",
+    "allow-claude-preview",
+    "allow-connect-provider",
+    "allow-disconnect-provider",
+    "allow-save-project",
+    "allow-remove-project",
+    "allow-cloud-start",
+    "allow-cloud-redeem",
+    "allow-cloud-disconnect",
+    "allow-cloud-sync",
+    "allow-cloud-action",
+    "allow-cloud-preferences",
+    "allow-open-link"
   ]
 }

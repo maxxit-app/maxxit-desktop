@@ -2,6 +2,13 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "tray",
   "description": "Usage panel can listen to local refresh events",
-  "windows": ["tray"],
-  "permissions": ["core:event:default"]
+  "windows": [
+    "tray"
+  ],
+  "permissions": [
+    "core:event:default",
+    "allow-snapshot",
+    "allow-tray-action",
+    "allow-tray-resize"
+  ]
 }

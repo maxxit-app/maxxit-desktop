@@ -3,21 +3,31 @@ on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 concurrency:
   group: desktop-${{ github.ref }}
   cancel-in-progress: true
-permissions:
-  contents: read
 jobs:
   check:
-    runs-on: macos-latest
+    name: Desktop checks
+    runs-on: macos-15
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - run: rustup update stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: "24.15.0" }
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.94.1 --profile minimal --component rustfmt,clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with: { workspaces: src-tauri }
+      - name: Select release SDK
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build && pnpm test
-      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - run: pnpm check
+      - name: Build unsigned native bundle
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+        run: pnpm tauri build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}' -- --locked

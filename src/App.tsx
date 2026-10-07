@@ -6,10 +6,8 @@ import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
   Activity,
   ArrowUpRight,
-  Bell,
   Check,
   ChevronRight,
-  Command,
   Folder,
   LayoutDashboard,
   Lightbulb,

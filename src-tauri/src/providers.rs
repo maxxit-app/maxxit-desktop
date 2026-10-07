@@ -71,15 +71,20 @@ fn records(path: &Path, tail: bool) -> Vec<Value> {
 }
 
 pub fn codex_local() -> ProviderView {
-    let mut view = ProviderView::empty("codex");
+    let view = ProviderView::empty("codex");
     let home = std::env::var_os("CODEX_HOME")
         .map(PathBuf::from)
         .or_else(|| dirs::home_dir().map(|h| h.join(".codex")));
     let Some(root) = home.map(|h| h.join("sessions")) else {
         return view;
     };
+    codex_from_sessions(&root, Utc::now())
+}
+
+fn codex_from_sessions(root: &Path, now: DateTime<Utc>) -> ProviderView {
+    let mut view = ProviderView::empty("codex");
     let mut files = vec![];
-    session_files(&root, 0, &mut files, &mut 0);
+    session_files(root, 0, &mut files, &mut 0);
     files.sort_by_key(|p| std::cmp::Reverse(fs::metadata(p).and_then(|m| m.modified()).ok()));
     files.truncate(200);
     let mut selected_account: Option<Option<String>> = None;
@@ -126,7 +131,7 @@ pub fn codex_local() -> ProviderView {
             else {
                 continue;
             };
-            if time.timestamp() > Utc::now().timestamp() + 60 {
+            if time.timestamp() > now.timestamp() + 60 {
                 continue;
             }
             if let Some(total) = payload
@@ -242,6 +247,79 @@ mod tests {
         let mut files = vec![];
         session_files(&root, 0, &mut files, &mut 0);
         assert_eq!(files.len(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn synthetic_codex_usage_is_partial_account_scoped_and_future_safe() {
+        let root = std::env::temp_dir().join(uuid::Uuid::new_v4().to_string());
+        fs::create_dir_all(&root).unwrap();
+        let now = DateTime::parse_from_rfc3339("2026-10-07T12:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        for (name, account, modified) in [
+            ("rollout-current.jsonl", "current", 3),
+            ("rollout-other.jsonl", "other", 2),
+        ] {
+            let rows = [
+                json!({"type":"session_meta","payload":{"creator_account_id":account,"private":"not exported"}}),
+                json!({"timestamp":"2026-10-07T10:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":100}},"rate_limits":{"primary":{"used_percent":25,"resets_at":1791388800i64,"window_minutes":300}}}}),
+                json!({"timestamp":"2026-10-07T10:01:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":150}}}}),
+                json!({"timestamp":"2099-01-01T00:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":999999}}}}),
+            ];
+            let path = root.join(name);
+            fs::write(
+                &path,
+                rows.iter()
+                    .map(Value::to_string)
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            )
+            .unwrap();
+            fs::File::open(&path)
+                .unwrap()
+                .set_times(
+                    fs::FileTimes::new().set_modified(
+                        std::time::UNIX_EPOCH + std::time::Duration::from_secs(modified),
+                    ),
+                )
+                .unwrap();
+        }
+        let view = codex_from_sessions(&root, now);
+        assert_eq!(
+            view.daily_tokens,
+            vec![json!({"startDate":"2026-10-07","tokens":50})]
+        );
+        assert_eq!(view.observation.as_ref().unwrap().windows.len(), 1);
+        assert_eq!(
+            view.observation.as_ref().unwrap().windows[0].used_percent,
+            Some(25.0)
+        );
+        assert!(!serde_json::to_string(&view)
+            .unwrap()
+            .contains("not exported"));
+        assert_eq!(view.summary["historyComplete"], false);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn malformed_session_and_absent_claude_windows_remain_unavailable() {
+        let root = std::env::temp_dir().join(uuid::Uuid::new_v4().to_string());
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("rollout-invalid.jsonl"), "not JSON").unwrap();
+        assert!(!codex_from_sessions(&root, Utc::now()).connected);
+        fs::write(
+            root.join("claude-usage.json"),
+            json!({"observedAt":"2026-10-07T12:00:00Z","rate_limits":{}}).to_string(),
+        )
+        .unwrap();
+        let view = claude_local(&root, "synthetic");
+        assert!(view
+            .observation
+            .unwrap()
+            .windows
+            .iter()
+            .all(|window| window.used_percent.is_none()));
         fs::remove_dir_all(root).unwrap();
     }
 }

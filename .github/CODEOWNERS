@@ -1,0 +1,8 @@
+# The owner reviews security-sensitive changes. Add an independent reviewer
+# when another maintainer is available. See docs/maintaining.md for owner PRs.
+* @Akhouad
+/.github/ @Akhouad
+/scripts/ @Akhouad
+/src-tauri/ @Akhouad
+/src/updates.ts @Akhouad
+/SECURITY.md @Akhouad
