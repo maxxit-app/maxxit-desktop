@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -54,6 +55,20 @@ export function verifyChecksums(directory, legacy = false) {
       throw new Error("Missing or invalid checksum for " + name);
   }
 }
+// BSD tar hides AppleDouble records when listing. Inspect the actual member names.
+export function readArchiveEntries(archive) {
+  return JSON.parse(
+    execFileSync(
+      "python3",
+      [
+        "-c",
+        "import json,sys,tarfile; archive=tarfile.open(sys.argv[1], 'r:gz'); print(json.dumps([m.name + '/' if m.isdir() and not m.name.endswith('/') else m.name for m in archive.getmembers()]))",
+        archive,
+      ],
+      { encoding: "utf8" },
+    ),
+  );
+}
 export function archiveEntriesSafe(entries) {
   if (
     !entries.length ||
@@ -61,6 +76,7 @@ export function archiveEntriesSafe(entries) {
       (p) =>
         !p.startsWith("Maxxit.app/") ||
         p.split("/").includes("..") ||
+        p.split("/").some((part) => part.startsWith("._")) ||
         p.startsWith("/") ||
         p.includes("\\"),
     )

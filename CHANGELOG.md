@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.12 October 8 2026
+
+- Discover locally saved Codex and Claude Code projects automatically after sign-in. Deduplicate folders used by both providers and preserve project identity when a Codex CLI folder becomes a saved workspace.
+- Remove manual project creation. Project names follow the provider; descriptions and archive status remain editable. Existing local records are retained.
+- Display the Clerk username or primary email instead of an internal account ID.
+- Exclude macOS metadata files from updater archives and reject them during release verification, fixing installation failures in earlier updates.
+- Support macOS 14 or later on Apple silicon and Intel. Remote-only projects without local metadata are unavailable. Physical Intel and macOS 14 acceptance remain unverified.
+
 ## 0.1.11 October 8 2026
 
 - Require browser account approval before desktop and tray data access. Preserve seven-day offline access for a verified account.
