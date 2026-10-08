@@ -1,5 +1,5 @@
 use crate::model::Settings;
-use serde_json::{json, Value};
+use serde_json::Value;
 static CREDENTIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 trait Credentials {
     fn read(&self) -> Result<Option<String>, String>;
@@ -77,6 +77,47 @@ pub fn forget_credential() -> Result<(), String> {
         .map_err(|_| "Credential storage unavailable")?;
     Keychain.remove()
 }
+pub fn pending_revocations() -> Result<Vec<String>, String> {
+    let entry = keyring::Entry::new("app.maxxit.desktop", "pending-revocations")
+        .map_err(|_| "Revocation Keychain unavailable")?;
+    match entry.get_password() {
+        Ok(value) => {
+            serde_json::from_str(&value).map_err(|_| "Pending revocations are invalid".into())
+        }
+        Err(keyring::Error::NoEntry) => Ok(vec![]),
+        Err(_) => Err("Revocation Keychain unavailable".into()),
+    }
+}
+pub fn save_revocations(tokens: &[String]) -> Result<(), String> {
+    let entry = keyring::Entry::new("app.maxxit.desktop", "pending-revocations")
+        .map_err(|_| "Revocation Keychain unavailable")?;
+    entry
+        .set_password(&serde_json::to_string(tokens).map_err(|_| "Invalid revocations")?)
+        .map_err(|_| "Could not preserve pending revocation".into())
+}
+#[derive(Debug)]
+pub enum CloudError {
+    Http(u16, String),
+    Unavailable(String),
+}
+impl std::fmt::Display for CloudError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Http(code, message) => write!(f, "HTTP {code}: {message}"),
+            Self::Unavailable(message) => write!(f, "{message}"),
+        }
+    }
+}
+impl From<String> for CloudError {
+    fn from(value: String) -> Self {
+        Self::Unavailable(value)
+    }
+}
+impl From<&str> for CloudError {
+    fn from(value: &str) -> Self {
+        Self::Unavailable(value.into())
+    }
+}
 pub fn origin(settings: &Settings) -> Result<String, String> {
     let url = url::Url::parse(&settings.api_origin).map_err(|_| "Invalid API origin")?;
     if url.username() != ""
@@ -112,6 +153,29 @@ pub async fn request(
     body: Option<Value>,
     authenticated: bool,
 ) -> Result<Value, String> {
+    let token = if authenticated {
+        Some(credential()?.ok_or("Connect your Maxxit account first")?)
+    } else {
+        None
+    };
+    request_bound(settings, path, body, token.as_deref()).await
+}
+pub async fn request_bound(
+    settings: &Settings,
+    path: &str,
+    body: Option<Value>,
+    token: Option<&str>,
+) -> Result<Value, String> {
+    request_typed(settings, path, body, token)
+        .await
+        .map_err(|e| e.to_string())
+}
+pub async fn request_typed(
+    settings: &Settings,
+    path: &str,
+    body: Option<Value>,
+    token: Option<&str>,
+) -> Result<Value, CloudError> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .redirect(reqwest::redirect::Policy::none())
@@ -123,9 +187,10 @@ pub async fn request(
     } else {
         client.get(format!("{}/v1/{path}", origin(settings)?))
     };
-    if authenticated {
-        request = request.bearer_auth(credential()?.ok_or("Connect your Maxxit account first")?);
+    if let Some(token) = token {
+        request = request.bearer_auth(token);
     }
+    request = request.header("x-maxxit-version", env!("CARGO_PKG_VERSION"));
     if let Some(payload) = body {
         request = request.json(&payload);
     }
@@ -148,7 +213,9 @@ pub async fn request(
                 continue;
             }
         }
-        break result.map_err(|_| "Maxxit cloud is unavailable. Local analytics still work.")?;
+        break result.map_err(|_| {
+            "Maxxit is unavailable. Your last verified login may allow offline use."
+        })?;
     };
     let status = response.status();
     const LIMIT: usize = 2_000_000;
@@ -171,22 +238,14 @@ pub async fn request(
     }
     let value: Value = serde_json::from_slice(&bytes).map_err(|_| "Invalid service response")?;
     if !status.is_success() {
-        return Err(value["error"]
-            .as_str()
-            .unwrap_or("Cloud request failed")
-            .into());
+        let message = value["error"].as_str().unwrap_or("Cloud request failed");
+        return Err(CloudError::Http(status.as_u16(), message.into()));
     }
+
     Ok(value)
 }
-pub async fn state(settings: &Settings) -> Value {
-    match credential() {
-        Ok(Some(_)) => match request(settings, "desktop/state", None, true).await {
-            Ok(data) => json!({"connected":true,"plan":data["billing"]["plan"],"data":data}),
-            Err(error) => json!({"connected":true,"plan":"free","error":error}),
-        },
-        Ok(None) => json!({"connected":false,"plan":"free"}),
-        Err(error) => json!({"connected":false,"plan":"free","error":error}),
-    }
+pub fn relay_revoked(error: &str) -> bool {
+    error.starts_with("HTTP 401:")
 }
 
 #[cfg(test)]
@@ -226,6 +285,10 @@ mod tests {
     }
     #[test]
     fn transient_read_retries_are_bounded_and_never_retry_auth_rejections() {
+        assert!(relay_revoked("HTTP 401: revoked"));
+        assert!(!relay_revoked("HTTP 403: scope withdrawn"));
+        assert!(!relay_revoked("HTTP 402: Pro required"));
+        assert!(!relay_revoked("HTTP 503: temporary failure"));
         assert_eq!(retry_delay(0, Some(503), 10).unwrap().as_millis(), 1010);
         assert_eq!(retry_delay(1, Some(429), 10).unwrap().as_millis(), 2010);
         assert!(retry_delay(0, None, 10).is_some());

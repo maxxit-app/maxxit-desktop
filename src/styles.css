@@ -1250,3 +1250,140 @@ footer .muted {
     margin-left: 54px;
   }
 }
+
+.local-workflow {
+  display: grid;
+  gap: 20px;
+}
+.local-workflow select,
+.settings-card select {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--surface);
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.local-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.local-consent input {
+  width: auto;
+  margin-top: 3px;
+}
+.local-prompt,
+.local-suggestion {
+  margin: 18px 0;
+}
+.local-workflow pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.65;
+  max-height: 360px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.local-workflow textarea {
+  width: 100%;
+  margin: 10px 0;
+}
+.local-suggestion {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.local-report p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.account-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--bg, #f7f7f2);
+  padding: 48px 24px;
+}
+.gate-drag {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+}
+.gate-card {
+  width: min(540px, 100%);
+  padding: 40px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e4e8de);
+  border-radius: 20px;
+}
+.gate-card h1 {
+  font-size: 32px;
+  line-height: 1.2;
+  margin: 18px 0 14px;
+}
+.gate-card .brand {
+  margin-bottom: 40px;
+}
+.gate-card p {
+  line-height: 1.6;
+  color: var(--muted, #6e766f);
+}
+.gate-sharing {
+  border: 0;
+  padding: 16px 0 24px;
+  margin: 0;
+  display: grid;
+  gap: 14px;
+}
+.gate-sharing legend {
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.gate-sharing label {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+.gate-sharing input {
+  accent-color: #687e45;
+  width: 16px;
+  height: 16px;
+}
+.gate-sharing small,
+.gate-privacy {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.gate-submit {
+  width: 100%;
+  justify-content: center;
+}
+.text-button {
+  display: block;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  padding: 12px 0;
+  cursor: pointer;
+}
+.gate-pairing strong {
+  display: block;
+  font-size: 30px;
+  letter-spacing: 4px;
+  padding: 12px 0;
+}
+.gate-privacy {
+  display: flex;
+  gap: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line, #e4e8de);
+}

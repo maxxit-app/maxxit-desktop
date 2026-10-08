@@ -52,6 +52,57 @@ impl ProviderView {
     }
 }
 
+pub fn tray_allowance(
+    provider: &str,
+    observation: Option<&Observation>,
+    now: chrono::DateTime<Utc>,
+) -> (String, String) {
+    let unavailable = (
+        "M —".into(),
+        format!("Maxxit · {provider} · allowance unavailable"),
+    );
+    let Some(observation) = observation else {
+        return unavailable;
+    };
+    let Some(observed_at) = chrono::DateTime::parse_from_rfc3339(&observation.observed_at).ok()
+    else {
+        return unavailable;
+    };
+    let Some(window) = observation.windows.first() else {
+        return unavailable;
+    };
+    let Some(used) = window
+        .used_percent
+        .filter(|used| used.is_finite() && (0.0..=100.0).contains(used))
+    else {
+        return unavailable;
+    };
+    let reset = window
+        .resets_at
+        .as_deref()
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok());
+    if window.availability != "available" || reset.is_none_or(|reset| reset <= now) {
+        return unavailable;
+    }
+    let stale = now.signed_duration_since(observed_at).num_seconds() >= 7200;
+    let title = format!(
+        "{} {:.0}%{}",
+        if provider == "codex" { "C" } else { "A" },
+        100.0 - used,
+        if stale { "*" } else { "" }
+    );
+    let tooltip = if stale {
+        format!(
+            "Maxxit · {provider} · {:.0}% remaining at last reading · observed {} · stale data",
+            100.0 - used,
+            observation.observed_at
+        )
+    } else {
+        format!("Maxxit · {provider} · remaining allowance")
+    };
+    (title, tooltip)
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -59,6 +110,9 @@ pub struct Settings {
     pub background: bool,
     pub tray_provider: String,
     pub cloud_sync: bool,
+    pub account_sync: bool,
+    pub project_sync: bool,
+    pub workflow_sync: bool,
     pub api_origin: String,
     pub claude_enabled: bool,
     pub codex_enabled: bool,
@@ -73,6 +127,10 @@ pub struct Settings {
     pub daily_limit: i64,
     pub email: bool,
     pub ai_consent: bool,
+    pub generation_mode: String,
+    pub local_ai_consent: bool,
+    pub result_events: bool,
+    pub local_notifications: bool,
 }
 
 impl Default for Settings {
@@ -82,6 +140,9 @@ impl Default for Settings {
             background: true,
             tray_provider: "codex".into(),
             cloud_sync: false,
+            account_sync: false,
+            project_sync: false,
+            workflow_sync: false,
             api_origin: "https://maxxit.app".into(),
             claude_enabled: false,
             codex_enabled: false,
@@ -96,6 +157,10 @@ impl Default for Settings {
             daily_limit: 1,
             email: false,
             ai_consent: false,
+            generation_mode: "local".into(),
+            local_ai_consent: false,
+            result_events: false,
+            local_notifications: false,
         }
     }
 }
@@ -160,6 +225,40 @@ pub fn normalize_window_at(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn tray_retains_stale_readings_but_expires_elapsed_resets() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-10-07T19:47:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let mut observation = Observation {
+            provider: "codex".into(),
+            account_label: "synthetic".into(),
+            observed_at: (now - chrono::Duration::minutes(316)).to_rfc3339(),
+            source: "codex-local".into(),
+            windows: vec![normalize_window_at(
+                "codex",
+                "primary",
+                &serde_json::json!({"usedPercent":7,"resetsAt":now.timestamp()+86400,"windowDurationMins":10080}),
+                false,
+                now,
+            )],
+        };
+        let (title, tooltip) = tray_allowance("codex", Some(&observation), now);
+        assert_eq!(title, "C 93%*");
+        assert!(tooltip.contains("93% remaining at last reading"));
+        assert!(tooltip.contains(&observation.observed_at));
+        observation.observed_at = (now - chrono::Duration::minutes(119)).to_rfc3339();
+        assert_eq!(tray_allowance("codex", Some(&observation), now).0, "C 93%");
+        observation.observed_at = (now - chrono::Duration::minutes(120)).to_rfc3339();
+        assert_eq!(tray_allowance("codex", Some(&observation), now).0, "C 93%*");
+        observation.windows[0].resets_at = Some(now.to_rfc3339());
+        assert_eq!(tray_allowance("codex", Some(&observation), now).0, "M —");
+        observation.windows[0].resets_at = Some((now + chrono::Duration::days(1)).to_rfc3339());
+        observation.windows[0].used_percent = None;
+        assert_eq!(tray_allowance("codex", Some(&observation), now).0, "M —");
+        assert_eq!(tray_allowance("codex", None, now).0, "M —");
+    }
+
     #[test]
     fn missing_quota_stays_missing() {
         let w = normalize_window("subscription", "five_hour", &serde_json::json!({}), true);
