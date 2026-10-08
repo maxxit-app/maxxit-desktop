@@ -501,23 +501,118 @@ header p {
   border-radius: 4px;
   display: inline-block;
 }
-.project-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
-  margin-bottom: 20px;
+/* Compact project rows keep large discovered workspaces easy to scan. */
+.projects-toolbar {
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.project-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 320px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.project-search:focus-within {
+  border-color: var(--muted);
+}
+.project-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-small);
+}
+.project-search input::-webkit-search-cancel-button {
+  display: none;
+}
+.project-search input::placeholder {
+  color: var(--muted);
+}
+.projects-table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  margin-bottom: 16px;
+}
+.projects-table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--text-small);
+}
+.projects-table thead {
+  background: var(--alt);
+  color: var(--muted);
+}
+.projects-table th,
+.projects-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.projects-table th {
+  font-weight: 600;
+}
+.projects-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.projects-table tbody tr:hover {
+  background: var(--alt);
+}
+.projects-table tbody th {
+  width: 28%;
+}
+.project-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.project-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+.project-status {
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink);
+}
+.project-status.archived {
+  color: var(--muted);
+}
+.project-actions-heading {
+  text-align: right;
+}
+.project-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+.project-row-actions .button {
+  padding: 6px 9px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.projects-table .project-no-results {
+  padding: 36px 16px;
+  text-align: center;
+}
+.project-no-results p {
+  margin: 4px 0 16px;
 }
 .project-card {
   padding: 24px;
-}
-.project-icon {
-  color: #75864f;
-  background: var(--alt);
-  width: 45px;
-  height: 45px;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
 }
 .project-card h3 {
   margin: 22px 0 8px;

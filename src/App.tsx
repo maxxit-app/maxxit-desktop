@@ -16,6 +16,7 @@ import {
   Link2,
   LoaderCircle,
   RefreshCw,
+  Search,
   Settings as SettingsIcon,
   ShieldCheck,
   Terminal,
@@ -167,6 +168,13 @@ export default function App() {
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [projectSearch, setProjectSearch] = useState("");
+  const projectQuery = projectSearch.trim().toLocaleLowerCase();
+  const visibleProjects = data.projects.filter((project) =>
+    `${project.name} ${project.description}`
+      .toLocaleLowerCase()
+      .includes(projectQuery),
+  );
   const [preview, setPreview] = useState<{
     command: string;
     settingsPath: string;
@@ -473,83 +481,155 @@ export default function App() {
           )}
           {tab === "Projects" && (
             <>
-              <div className="section-heading">
-                <span>
+              <div className="section-heading projects-toolbar">
+                <span role="status" aria-live="polite">
+                  {projectQuery ? `${visibleProjects.length} of ` : ""}
                   {data.projects.length}{" "}
                   {data.projects.length === 1 ? "project" : "projects"}
                 </span>
+                <div className="project-search">
+                  <Search size={17} aria-hidden="true" />
+                  <input
+                    type="search"
+                    aria-label="Search projects"
+                    placeholder="Search projects…"
+                    value={projectSearch}
+                    onChange={(event) => setProjectSearch(event.target.value)}
+                  />
+                  {projectSearch && (
+                    <button
+                      className="icon-button"
+                      aria-label="Clear project search"
+                      onClick={() => setProjectSearch("")}
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="project-grid">
-                {data.projects.map((p) => (
-                  <article className="card project-card" key={p.id}>
-                    <div className="card-top">
-                      <span className="project-icon">
-                        <Folder size={23} />
-                      </span>
-                      <button
-                        className="icon-button"
-                        aria-label={`Remove ${p.name}`}
-                        onClick={() =>
-                          void action(async () => {
-                            if (native)
-                              await invoke("remove_project", { id: p.id });
-                            else
-                              setData({
-                                ...data,
-                                projects: data.projects.filter(
-                                  (x) => x.id !== p.id,
-                                ),
-                              });
-                          })
-                        }
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                    <h3>
-                      {p.name}{" "}
-                      {p.archived && <span className="tag">Archived</span>}
-                    </h3>
-                    <p>{p.description || "No description yet."}</p>
-                    <div className="connection-actions">
-                      <button
-                        className="button secondary"
-                        onClick={() => {
-                          setEditing(p.id);
-                          setName(p.name);
-                          setDescription(p.description);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="button secondary"
-                        disabled={busy}
-                        onClick={() =>
-                          void action(async () => {
-                            if (native)
-                              await invoke("save_project", {
-                                ...p,
-                                archived: !p.archived,
-                              });
-                            else
-                              setData({
-                                ...data,
-                                projects: data.projects.map((x) =>
-                                  x.id === p.id
-                                    ? { ...x, archived: !x.archived }
-                                    : x,
-                                ),
-                              });
-                          })
-                        }
-                      >
-                        {p.archived ? "Restore" : "Archive"}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
+              {!!data.projects.length && (
+                <div
+                  className="projects-table-scroll"
+                  role="region"
+                  aria-label="Projects"
+                  tabIndex={0}
+                >
+                  <table className="projects-table">
+                    <caption className="sr-only">Discovered projects</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Project</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" className="project-actions-heading">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleProjects.map((p) => (
+                        <tr key={p.id}>
+                          <th scope="row">
+                            <span className="project-name">{p.name}</span>
+                          </th>
+                          <td>
+                            <span
+                              className="project-description"
+                              title={p.description || undefined}
+                            >
+                              {p.description || "No description yet."}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`project-status ${p.archived ? "archived" : ""}`}
+                            >
+                              {p.archived ? "Archived" : "Active"}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="project-row-actions">
+                              <button
+                                className="button secondary"
+                                aria-label={`Edit ${p.name}`}
+                                disabled={busy}
+                                onClick={() => {
+                                  setEditing(p.id);
+                                  setName(p.name);
+                                  setDescription(p.description);
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="button secondary"
+                                aria-label={`${p.archived ? "Restore" : "Archive"} ${p.name}`}
+                                disabled={busy}
+                                onClick={() =>
+                                  void action(async () => {
+                                    if (native)
+                                      await invoke("save_project", {
+                                        ...p,
+                                        archived: !p.archived,
+                                      });
+                                    else
+                                      setData({
+                                        ...data,
+                                        projects: data.projects.map((x) =>
+                                          x.id === p.id
+                                            ? { ...x, archived: !x.archived }
+                                            : x,
+                                        ),
+                                      });
+                                  })
+                                }
+                              >
+                                {p.archived ? "Restore" : "Archive"}
+                              </button>
+                              <button
+                                className="icon-button"
+                                aria-label={`Remove ${p.name}`}
+                                disabled={busy}
+                                onClick={() =>
+                                  void action(async () => {
+                                    if (native)
+                                      await invoke("remove_project", {
+                                        id: p.id,
+                                      });
+                                    else
+                                      setData({
+                                        ...data,
+                                        projects: data.projects.filter(
+                                          (x) => x.id !== p.id,
+                                        ),
+                                      });
+                                  })
+                                }
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {!visibleProjects.length && (
+                        <tr>
+                          <td colSpan={4} className="project-no-results">
+                            <strong>No matching projects</strong>
+                            <p>Try another name or description.</p>
+                            <button
+                              className="button secondary"
+                              onClick={() => setProjectSearch("")}
+                            >
+                              Clear search
+                            </button>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               {!data.projects.length && (
                 <div className="card empty-state">
                   <Folder size={30} />
