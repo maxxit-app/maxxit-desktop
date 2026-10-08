@@ -49,7 +49,7 @@ impl Store {
             let version: u32 = source
                 .query_row("PRAGMA user_version", [], |r| r.get(0))
                 .map_err(|_| "Invalid database")?;
-            if version > 3 {
+            if version > 4 {
                 return Err(
                     "Install the newer Maxxit version before migrating this database".into(),
                 );
@@ -124,7 +124,7 @@ impl Store {
         let version: u32 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(|_| "Local database is unreadable")?;
-        if version > 3 {
+        if version > 4 {
             return Err("This database belongs to a newer Maxxit version. Install that version before opening it.".into());
         }
         connection
@@ -166,6 +166,9 @@ impl Store {
                 connection.execute(&format!("INSERT OR IGNORE INTO sync_records(kind,record_id,revision,body) SELECT ?1,id,1,body FROM {table}"), [kind]).map_err(|_| "Sync backfill failed")?;
             }
         }
+        if version < 4 {
+            connection.execute_batch("BEGIN; CREATE TABLE reset_watches(id TEXT PRIMARY KEY,body TEXT NOT NULL,updated_at TEXT NOT NULL); CREATE TABLE reset_events(id TEXT PRIMARY KEY,body TEXT NOT NULL,observed_at TEXT NOT NULL,native_state TEXT NOT NULL DEFAULT 'pending'); PRAGMA user_version=4; COMMIT;").map_err(|_| "Reset alert migration failed")?;
+        }
         let store = Self { connection };
         store.settings()?;
         Ok(store)
@@ -197,6 +200,10 @@ impl Store {
         self.connection.execute("INSERT INTO settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![key,value.to_string()]).map(|_|()).map_err(|e|e.to_string())
     }
     pub fn record(&self, observation: &Observation) -> Result<(), String> {
+        let transaction = self
+            .connection
+            .unchecked_transaction()
+            .map_err(|e| e.to_string())?;
         let body = serde_json::to_string(observation).map_err(|e| e.to_string())?;
         let id = format!("{:x}", Sha256::digest(body.as_bytes()));
         self.connection.execute("INSERT OR IGNORE INTO observations(id,provider,account,observed_at,body) VALUES(?1,?2,?3,?4,?5)",params![id,observation.provider,observation.account_label,observation.observed_at,body]).map_err(|e|e.to_string())?;
@@ -206,7 +213,8 @@ impl Store {
                 [],
             )
             .map_err(|e| e.to_string())?;
-        Ok(())
+        self.observe_reset_alerts(observation, chrono::Utc::now())?;
+        transaction.commit().map_err(|e| e.to_string())
     }
     pub fn history(&self) -> Result<Vec<Observation>, String> {
         let mut query = self
@@ -368,6 +376,8 @@ mod tests {
         let o = Observation {
             provider: "claude".into(),
             account_label: "local".into(),
+            provider_account_id: None,
+            source_version: None,
             observed_at: "2099-01-01T00:00:00Z".into(),
             source: "claude-statusline".into(),
             windows: vec![],

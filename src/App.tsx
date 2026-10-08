@@ -259,9 +259,10 @@ export default function App() {
     if (native) {
       await action(async () => {
         await invoke("save_settings", { settings: updated });
-        if (data.cloud.connected) await invoke("cloud_sync");
+
         if (data.cloud.connected && data.cloud.plan === "pro")
           await invoke("cloud_preferences");
+        if (data.cloud.connected) await invoke("cloud_sync");
       });
     } else setData({ ...data, settings: updated });
   }
@@ -422,6 +423,58 @@ export default function App() {
                   View projects <ArrowUpRight size={15} />
                 </button>
               </div>
+              {(data.resetEvents?.length ?? 0) > 0 && (
+                <section className="card">
+                  <h2>Recent reset alerts</h2>
+                  <p className="small muted">
+                    These readings show reported changes. Claude account
+                    identity is unavailable in the statusline, so reconnect
+                    after switching accounts. Other limits may still apply.
+                  </p>
+                  {data.resetEvents?.slice(0, 5).map((event) => (
+                    <article key={event.id}>
+                      <h3>{event.title}</h3>
+                      <p>{event.body}</p>
+                      {event.before && (
+                        <p className="small muted">
+                          Previous reading{" "}
+                          {new Date(event.before.observedAt).toLocaleString(
+                            undefined,
+                            { timeZone: data.settings.timezone },
+                          )}
+                          .{" "}
+                          {event.before.window.usedPercent !== null &&
+                            `${Math.round(100 - event.before.window.usedPercent)}% remaining.`}
+                        </p>
+                      )}
+                      <p className="small muted">
+                        Desktop status: {event.nativeState ?? "pending"}
+                      </p>
+                      <p className="small muted">
+                        Observed{" "}
+                        {new Date(event.observedAt).toLocaleString(undefined, {
+                          timeZone: data.settings.timezone,
+                        })}
+                        .{" "}
+                        {event.effectiveAt &&
+                          `Reported reset ${new Date(event.effectiveAt).toLocaleString(undefined, { timeZone: data.settings.timezone })}.`}{" "}
+                        {data.settings.timezone}
+                      </p>
+                    </article>
+                  ))}
+                  <p>
+                    Useful next steps: review a recent change for reproducible
+                    bugs, or add a regression test for one fixed bug. Allow
+                    about 20 to 30 minutes and review the result.
+                  </p>
+                  <button
+                    className="button secondary"
+                    onClick={() => setTab("Ideas")}
+                  >
+                    Review project ideas
+                  </button>
+                </section>
+              )}
               <div className="section-heading">
                 <h2>Recent observations</h2>
               </div>
@@ -1095,20 +1148,108 @@ export default function App() {
                   }
                 />
               </section>
-              <section className="card settings-card">
-                <h2>
-                  Reset reminders <span className="pro-pill">PRO</span>
-                </h2>
+              <section className="card settings-card reset-alert-settings">
+                <h2>Reset alerts</h2>
                 <p className="small muted">
-                  Available after connecting your Maxxit Pro account.
+                  Desktop alerts use fresh local readings. Email requires usage
+                  sharing and a connected Maxxit Pro account. macOS controls
+                  delivery in System Settings → Notifications.
                 </p>
-                <Toggle
-                  label="Email before a reset"
-                  detail="Only for windows with fresh usage and spare allowance."
-                  checked={data.settings.email}
-                  onChange={(email) => void settings({ email })}
-                  disabled={!data.cloud.connected || data.cloud.plan !== "pro"}
-                />
+                <div className="reset-options">
+                  <Toggle
+                    label="Email reset alerts · Pro"
+                    detail="Verified email for the reset events you choose. Observed changes require usage sharing."
+                    checked={data.settings.email}
+                    onChange={(email) => void settings({ email })}
+                    disabled={
+                      !data.cloud.connected || data.cloud.plan !== "pro"
+                    }
+                  />
+                  <Toggle
+                    label="Desktop reset alerts"
+                    detail="Show a generic notice on the primary Mac. Open Maxxit for evidence and ideas."
+                    checked={data.settings.resetNotifications}
+                    onChange={(resetNotifications) =>
+                      void settings({ resetNotifications })
+                    }
+                  />
+                  {(
+                    [
+                      ["scheduled", "Before a scheduled reset"],
+                      ["changed", "When a reset time changes"],
+                      ["increased", "When fresh readings show more allowance"],
+                      ["announcements", "Reviewed official announcements"],
+                      ["offers", "Offers I confirm in Maxxit"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <Toggle
+                      key={key}
+                      label={label}
+                      detail={
+                        key === "announcements" || key === "offers"
+                          ? "Managed in the web workspace."
+                          : "An observed change does not confirm its cause."
+                      }
+                      checked={data.settings.resetAlerts[key]}
+                      onChange={(value) =>
+                        void settings({
+                          resetAlerts: {
+                            ...data.settings.resetAlerts,
+                            [key]: value,
+                          },
+                        })
+                      }
+                    />
+                  ))}
+                  {(["codex", "claude"] as const).map((provider) => (
+                    <Toggle
+                      key={provider}
+                      label={`${provider === "codex" ? "Codex" : "Claude"} alerts`}
+                      detail="Choose which provider to watch."
+                      checked={data.settings.resetAlerts.providers.includes(
+                        provider,
+                      )}
+                      onChange={(value) =>
+                        void settings({
+                          resetAlerts: {
+                            ...data.settings.resetAlerts,
+                            providers: value
+                              ? [
+                                  ...data.settings.resetAlerts.providers,
+                                  provider,
+                                ]
+                              : data.settings.resetAlerts.providers.filter(
+                                  (p) => p !== provider,
+                                ),
+                          },
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+                <label className="field-row">
+                  <span>Timezone</span>
+                  <input
+                    aria-label="Notification timezone"
+                    defaultValue={data.settings.timezone}
+                    onBlur={(e) => void settings({ timezone: e.target.value })}
+                  />
+                </label>
+                <label className="field-row">
+                  <span>Daily alert limit</span>
+                  <select
+                    value={data.settings.dailyLimit}
+                    onChange={(e) =>
+                      void settings({ dailyLimit: Number(e.target.value) })
+                    }
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label className="field-row">
                   <span>Short window notice</span>
                   <select

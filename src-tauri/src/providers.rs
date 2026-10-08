@@ -171,6 +171,8 @@ fn codex_from_sessions(root: &Path, now: DateTime<Utc>) -> ProviderView {
                 latest = Some(Observation {
                     provider: "codex".into(),
                     account_label: label.clone(),
+                    provider_account_id: account.clone(),
+                    source_version: Some("codex-rollout-v1".into()),
                     observed_at,
                     source: "codex-local".into(),
                     windows,
@@ -224,6 +226,8 @@ pub fn claude_local(data_dir: &Path, account: &str) -> ProviderView {
                 view.observation = Some(Observation {
                     provider: "claude".into(),
                     account_label: account.into(),
+                    provider_account_id: None,
+                    source_version: Some("claude-statusline-v1".into()),
                     observed_at: observed_at.into(),
                     source: "claude-statusline".into(),
                     windows,
