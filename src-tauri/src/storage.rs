@@ -280,6 +280,15 @@ impl Store {
         self.connection.execute("INSERT INTO projects(id,body) VALUES(?1,?2) ON CONFLICT(id) DO UPDATE SET body=excluded.body",params![id,project.to_string()]).map(|_|()).map_err(|e|e.to_string())
     }
     pub fn remove_project(&self, id: &str) -> Result<(), String> {
+        let mut dismissed = self
+            .get("dismissedProviderProjects")?
+            .unwrap_or(serde_json::json!([]));
+        if let Some(ids) = dismissed.as_array_mut() {
+            if !ids.iter().any(|value| value == id) {
+                ids.push(serde_json::json!(id));
+            }
+        }
+        self.set("dismissedProviderProjects", &dismissed)?;
         for run in self.runs()? {
             if run.project_id == id {
                 self.remove_run(&run.id)?;

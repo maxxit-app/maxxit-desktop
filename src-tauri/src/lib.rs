@@ -2,6 +2,7 @@ mod account;
 pub mod bridge;
 mod cloud;
 mod model;
+mod projects;
 mod providers;
 mod storage;
 mod sync;
@@ -67,6 +68,7 @@ struct Runtime {
     session_store: Mutex<Store>,
     account: Mutex<account::Account>,
     directory: PathBuf,
+    project_sources: projects::Sources,
     pairing: Mutex<Option<Value>>,
     panel_hidden_at: AtomicI64,
 }
@@ -85,6 +87,7 @@ mod account_gate_tests {
             session_store: Mutex::new(Store::open(std::path::Path::new(":memory:")).unwrap()),
             account: Mutex::new(account::Account::default()),
             directory: PathBuf::from("unused-fixture-directory"),
+            project_sources: projects::Sources::default(),
             pairing: Mutex::new(None),
             panel_hidden_at: AtomicI64::new(0),
         };
@@ -110,6 +113,20 @@ mod account_gate_tests {
                 .unwrap(),
             Some(json!(true))
         );
+    }
+    #[test]
+    fn project_edits_require_an_existing_record_and_preserve_source_name() {
+        let store = Store::open(std::path::Path::new(":memory:")).unwrap();
+        assert!(update_project(&store, "unknown", "Goal".into(), None, None).is_err());
+        assert!(store.projects().unwrap().is_empty());
+        store
+            .save_project(&json!({"id":"known","name":"Source name","description":""}))
+            .unwrap();
+        update_project(&store, "known", "Goal".into(), Some(true), None).unwrap();
+        let project = &store.projects().unwrap()[0];
+        assert_eq!(project["name"], "Source name");
+        assert_eq!(project["description"], "Goal");
+        assert_eq!(project["archived"], true);
     }
     #[test]
     fn legacy_claim_is_owned_and_preserves_newer_projects() {
@@ -141,6 +158,11 @@ fn collect(runtime: &Runtime) -> Result<Value, String> {
     } else {
         ProviderView::empty("claude")
     };
+    projects::import_local(
+        &store,
+        &runtime.project_sources,
+        chrono::Utc::now().timestamp(),
+    )?;
     store.prune_runs()?;
     for provider in [&codex, &claude] {
         if let Some(observation) = &provider.observation {
@@ -817,34 +839,36 @@ fn disconnect_provider(runtime: State<'_, Runtime>, provider: String) -> Result<
     }
     store.save_settings(&settings)
 }
-#[tauri::command]
-fn save_project(
-    runtime: State<'_, Runtime>,
-    name: String,
+fn update_project(
+    store: &Store,
+    id: &str,
     description: String,
-    id: Option<String>,
     archived: Option<bool>,
     pinned: Option<bool>,
 ) -> Result<(), String> {
-    if name.trim().is_empty() || name.len() > 120 || description.len() > 10000 {
-        return Err("Project name or description exceeds its limit".into());
+    if description.len() > 10000 {
+        return Err("Project description exceeds its limit".into());
     }
-    let store = runtime.authorized_store()?;
-    let project = if let Some(id) = id {
-        store
-            .projects()?
-            .into_iter()
-            .find(|p| p["id"] == id)
-            .ok_or("Project not found")?
-    } else {
-        json!({"id":uuid::Uuid::new_v4().to_string(),"createdAt":chrono::Utc::now().to_rfc3339()})
-    };
-    let mut project = project;
-    project["name"] = json!(name.trim());
+    let mut project = store
+        .projects()?
+        .into_iter()
+        .find(|p| p["id"] == id)
+        .ok_or("Project not found")?;
     project["description"] = json!(description);
     project["archived"] = json!(archived.unwrap_or(project["archived"].as_bool().unwrap_or(false)));
     project["pinned"] = json!(pinned.unwrap_or(project["pinned"].as_bool().unwrap_or(false)));
     store.save_project(&project)
+}
+#[tauri::command]
+fn save_project(
+    runtime: State<'_, Runtime>,
+    description: String,
+    id: String,
+    archived: Option<bool>,
+    pinned: Option<bool>,
+) -> Result<(), String> {
+    let store = runtime.authorized_store()?;
+    update_project(&store, &id, description, archived, pinned)
 }
 #[tauri::command]
 async fn remove_project(runtime: State<'_, Runtime>, id: String) -> Result<(), String> {
@@ -1109,6 +1133,7 @@ pub fn run() {
             };
             cached.status = "checking".into();
             app.manage(Runtime {
+                project_sources: projects::Sources::local(),
                 session_store: Mutex::new(session_store),
                 account: Mutex::new(cached),
                 store: Mutex::new(store),

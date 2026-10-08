@@ -108,7 +108,7 @@ export interface Snapshot {
       }[];
       generations: { id: string; state: string }[];
       emailReady?: boolean;
-      account?: { id: string; email: string | null };
+      account?: { id: string; username?: string | null; email: string | null };
       identity?: {
         consent: {
           usage: boolean;

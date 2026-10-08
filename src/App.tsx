@@ -15,7 +15,6 @@ import {
   Lightbulb,
   Link2,
   LoaderCircle,
-  Plus,
   RefreshCw,
   Settings as SettingsIcon,
   ShieldCheck,
@@ -159,7 +158,6 @@ export default function App() {
   const [tab, setTab] = useState("Overview");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [add, setAdd] = useState(false);
   const [legacy, setLegacy] = useState<{
     accountId: string;
     projects: { id: string; name: string }[];
@@ -282,7 +280,7 @@ export default function App() {
     ],
     Projects: [
       "Projects",
-      "Keep project descriptions for local ideas and your synced web workspace.",
+      "Projects discovered automatically from Codex and Claude Code.",
     ],
     Ideas: ["Project ideas", "Suggested tasks and prompts for your projects."],
     Connections: [
@@ -327,8 +325,8 @@ export default function App() {
             <div className="avatar">M</div>
             <div>
               <strong>
-                {data.cloud.data?.account?.email ||
-                  data.cloud.data?.account?.id ||
+                {data.cloud.data?.account?.username ||
+                  data.cloud.data?.account?.email ||
                   "This Mac"}
               </strong>
               <span>
@@ -405,15 +403,15 @@ export default function App() {
                 <div>
                   <h3>Project suggestions</h3>
                   <p>
-                    Add a project, then prepare a reviewed prompt in Ideas.
-                    Hosted suggestions require Pro.
+                    Choose a discovered project, then prepare a reviewed prompt
+                    in Ideas. Hosted suggestions require Pro.
                   </p>
                 </div>
                 <button
                   className="button secondary"
                   onClick={() => setTab("Projects")}
                 >
-                  Add a project <Plus size={15} />
+                  View projects <ArrowUpRight size={15} />
                 </button>
               </div>
               <div className="section-heading">
@@ -476,18 +474,10 @@ export default function App() {
           {tab === "Projects" && (
             <>
               <div className="section-heading">
-                <span>{data.projects.length} projects</span>
-                <button
-                  className="button"
-                  onClick={() => {
-                    setEditing(null);
-                    setName("");
-                    setDescription("");
-                    setAdd(true);
-                  }}
-                >
-                  <Plus size={16} /> Add project
-                </button>
+                <span>
+                  {data.projects.length}{" "}
+                  {data.projects.length === 1 ? "project" : "projects"}
+                </span>
               </div>
               <div className="project-grid">
                 {data.projects.map((p) => (
@@ -528,7 +518,6 @@ export default function App() {
                           setEditing(p.id);
                           setName(p.name);
                           setDescription(p.description);
-                          setAdd(true);
                         }}
                       >
                         Edit
@@ -565,17 +554,16 @@ export default function App() {
                 <div className="card empty-state">
                   <Folder size={30} />
                   <h3>No projects yet</h3>
-                  <p>Add a project name and description.</p>
+                  <p>
+                    Projects appear automatically after you use Codex or Claude
+                    Code on this Mac.
+                  </p>
                   <button
                     className="button"
-                    onClick={() => {
-                      setEditing(null);
-                      setName("");
-                      setDescription("");
-                      setAdd(true);
-                    }}
+                    onClick={() => void refresh()}
+                    disabled={busy}
                   >
-                    Add your first project <Plus size={15} />
+                    Refresh <RefreshCw size={15} />
                   </button>
                 </div>
               )}
@@ -1196,7 +1184,7 @@ export default function App() {
           </footer>
         </div>
       </main>
-      {add && (
+      {editing && (
         <div className="modal-backdrop">
           <form
             className="modal card"
@@ -1205,40 +1193,29 @@ export default function App() {
               void action(async () => {
                 if (native)
                   await invoke("save_project", {
-                    name,
                     description,
                     id: editing,
                   });
                 else
                   setData({
                     ...data,
-                    projects: editing
-                      ? data.projects.map((p) =>
-                          p.id === editing ? { ...p, name, description } : p,
-                        )
-                      : [
-                          {
-                            id: crypto.randomUUID(),
-                            name,
-                            description,
-                            createdAt: new Date().toISOString(),
-                          },
-                          ...data.projects,
-                        ],
+                    projects: data.projects.map((p) =>
+                      p.id === editing ? { ...p, description } : p,
+                    ),
                   });
-                setAdd(false);
+                setEditing(null);
                 setName("");
                 setDescription("");
               });
             }}
           >
             <div className="card-top">
-              <h2>{editing ? "Edit project" : "Add a project"}</h2>
+              <h2>Edit project description</h2>
               <button
                 type="button"
                 className="icon-button"
                 aria-label="Close"
-                onClick={() => setAdd(false)}
+                onClick={() => setEditing(null)}
               >
                 <X size={18} />
               </button>
@@ -1249,7 +1226,7 @@ export default function App() {
                 required
                 maxLength={120}
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                readOnly
                 placeholder="Project name"
               />
             </label>
@@ -1267,7 +1244,7 @@ export default function App() {
               Saved locally. You control whether this description is shared.
             </p>
             <button className="button" disabled={busy}>
-              Save project <Plus size={15} />
+              Save description <Check size={15} />
             </button>
           </form>
         </div>
