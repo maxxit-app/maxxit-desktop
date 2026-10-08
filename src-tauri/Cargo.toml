@@ -34,7 +34,7 @@ dirs = "6"
 tauri-plugin-process = "=2.4.0"
 tauri-plugin-notification = "2"
 base64 = "=0.22.1"
-minisign-verify = "=0.2.5"
+minisign-verify = "=0.3.0"
 chrono-tz = "=0.10.4"
 
 [target.'cfg(target_os = "macos")'.dependencies]
