@@ -4,6 +4,7 @@ mod cloud;
 mod model;
 mod projects;
 mod providers;
+mod reset_alerts;
 mod storage;
 mod sync;
 mod workflow;
@@ -153,7 +154,7 @@ fn collect(runtime: &Runtime) -> Result<Value, String> {
     } else {
         ProviderView::empty("codex")
     };
-    let claude = if settings.claude_enabled {
+    let mut claude = if settings.claude_enabled {
         providers::claude_local(&runtime.directory, &settings.claude_account)
     } else {
         ProviderView::empty("claude")
@@ -163,6 +164,26 @@ fn collect(runtime: &Runtime) -> Result<Value, String> {
         &runtime.project_sources,
         chrono::Utc::now().timestamp(),
     )?;
+    if let Some(observation) = &mut claude.observation {
+        if let Some(epoch) = store
+            .get("claudeResetEpoch")?
+            .and_then(|v| v.as_str().map(String::from))
+        {
+            observation.source_version = Some(format!("claude-v1:{epoch}"));
+        }
+        if store
+            .get("claudeResetAfter")?
+            .and_then(|v| v.as_str().map(String::from))
+            .is_some_and(|after| {
+                chrono::DateTime::parse_from_rfc3339(&after).is_ok_and(|after| {
+                    chrono::DateTime::parse_from_rfc3339(&observation.observed_at)
+                        .is_ok_and(|observed| observed <= after)
+                })
+            })
+        {
+            claude.observation = None;
+        }
+    }
     store.prune_runs()?;
     for provider in [&codex, &claude] {
         if let Some(observation) = &provider.observation {
@@ -170,7 +191,7 @@ fn collect(runtime: &Runtime) -> Result<Value, String> {
         }
     }
     Ok(
-        json!({"settings":settings,"providers":[codex,claude],"history":store.history()?,"projects":store.projects()?,"localRuns":store.runs()?,"cloud":{"connected":false,"plan":"free"}}),
+        json!({"settings":settings,"providers":[codex,claude],"resetEvents":store.reset_events()?,"history":store.history()?,"projects":store.projects()?,"localRuns":store.runs()?,"cloud":{"connected":false,"plan":"free"}}),
     )
 }
 impl Runtime {
@@ -322,7 +343,22 @@ async fn refresh_account(runtime: &Runtime) -> Result<Value, String> {
                         store.requeue_sync()?;
                         store.set("primaryDesktopId", primary)?;
                     }
+                    if store.get("resetPreferencesPending")? != Some(json!(true)) {
+                        if let Ok(reset_preferences) = serde_json::from_value(
+                            verified.cloud["data"]["preferences"]["resetAlerts"].clone(),
+                        ) {
+                            preferences.reset_alerts = reset_preferences;
+                        }
+                    }
+                    if store.get("emailPreferencePending")? != Some(json!(true)) {
+                        if let Some(email) =
+                            verified.cloud["data"]["preferences"]["email"].as_bool()
+                        {
+                            preferences.email = email;
+                        }
+                    }
                     store.save_settings(&preferences)?;
+                    store.import_cloud_reset_events(&verified.cloud["data"], chrono::Utc::now())?;
                     let epoch = verified.cloud["data"]["identity"]["epoch"].clone();
                     if store.get("syncEpoch")? != Some(epoch.clone()) {
                         store.requeue_sync()?;
@@ -740,11 +776,17 @@ async fn cloud_action(runtime: State<'_, Runtime>, action: String) -> Result<Val
 async fn cloud_preferences(runtime: State<'_, Runtime>) -> Result<(), String> {
     let settings = runtime_settings(&runtime)?;
     sync_cloud(&runtime).await?;
-    let result = cloud::request(&settings,"desktop/preferences",Some(json!({"email":settings.email,"aiConsent":settings.ai_consent,"reminders":settings.cloud_sync})),true).await;
+    let result = cloud::request(&settings,"desktop/preferences",Some(json!({"email":settings.email,"aiConsent":settings.ai_consent,"reminders":settings.cloud_sync,"resetAlerts":settings.reset_alerts})),true).await;
     if let Err(error) = &result {
         runtime.reject_revoked(error)?;
     }
     result?;
+    runtime
+        .authorized_store()?
+        .set("resetPreferencesPending", &json!(false))?;
+    runtime
+        .authorized_store()?
+        .set("emailPreferencePending", &json!(false))?;
     Ok(())
 }
 #[tauri::command]
@@ -785,6 +827,15 @@ async fn save_settings(runtime: State<'_, Runtime>, mut settings: Settings) -> R
     {
         return Err("Invalid preferences".into());
     }
+    if settings.timezone.parse::<chrono_tz::Tz>().is_err()
+        || settings
+            .reset_alerts
+            .providers
+            .iter()
+            .any(|p| !["codex", "claude"].contains(&p.as_str()))
+    {
+        return Err("Choose a valid IANA timezone and provider".into());
+    }
     let store = runtime.authorized_store()?;
     if !settings.result_events {
         store.cancel_outbox()?;
@@ -797,6 +848,14 @@ async fn save_settings(runtime: State<'_, Runtime>, mut settings: Settings) -> R
         && sync::shared_preferences(&store.settings()?) != sync::shared_preferences(&settings)
     {
         return Err("Change shared preferences on your primary desktop, or transfer that role in the web app".into());
+    }
+    if store.settings()?.email != settings.email {
+        store.set("emailPreferencePending", &json!(true))?;
+    }
+    if serde_json::to_value(&store.settings()?.reset_alerts).ok()
+        != serde_json::to_value(&settings.reset_alerts).ok()
+    {
+        store.set("resetPreferencesPending", &json!(true))?;
     }
     store.save_settings(&settings)
 }
@@ -837,6 +896,7 @@ fn disconnect_provider(runtime: State<'_, Runtime>, provider: String) -> Result<
     } else {
         settings.codex_enabled = false;
     }
+    store.reset_provider_alerts(&provider)?;
     store.save_settings(&settings)
 }
 fn update_project(
@@ -1248,6 +1308,20 @@ pub fn run() {
                         if let Some(tray) = handle.tray_by_id("maxxit") {
                             let _ = tray.set_title(Some(&title));
                             let _ = tray.set_tooltip(Some(tooltip));
+                        }
+                        if let Ok(store) = runtime.authorized_store() {
+                            let account = runtime.account.lock().ok();
+                            let primary = store.get("primaryDesktopId").ok().flatten();
+                            let is_primary = primary.as_ref().and_then(Value::as_str).is_none_or(|id| account.as_ref().and_then(|a| a.device_id.as_deref()) == Some(id));
+                            if is_primary {
+                                if let Ok(notices) = store.native_reset_notices(chrono::Utc::now()) {
+                                    use tauri_plugin_notification::NotificationExt;
+                                    for notice in notices {
+                                        let shown = handle.notification().builder().title(notice["title"].as_str().unwrap_or("Allowance update")).body(notice["body"].as_str().unwrap_or("Open Maxxit to review the reading and useful ideas.")).show().is_ok();
+                                        let _ = store.finish_native_reset(notice["id"].as_str().unwrap_or(""), shown);
+                                    }
+                                }
+                            }
                         }
                         let _ = handle.emit("usage-updated", ());
                     }

@@ -10,6 +10,8 @@ export interface UsageWindow {
 export interface Observation {
   provider: string;
   accountLabel: string;
+  providerAccountId?: string;
+  sourceVersion?: string;
   observedAt: string;
   source: string;
   windows: UsageWindow[];
@@ -50,6 +52,31 @@ export interface Settings {
   localAiConsent: boolean;
   resultEvents: boolean;
   localNotifications: boolean;
+  resetNotifications: boolean;
+  resetAlerts: ResetPreferences;
+}
+export interface ResetPreferences {
+  scheduled: boolean;
+  changed: boolean;
+  increased: boolean;
+  announcements: boolean;
+  offers: boolean;
+  providers: ("codex" | "claude")[];
+  inApp: boolean;
+  email: boolean;
+  projectDetailsInEmail: boolean;
+}
+export interface LocalResetEvent {
+  nativeState?: string;
+  before?: { observedAt: string; window: UsageWindow };
+  id: string;
+  provider: string;
+  kind: string;
+  title: string;
+  body: string;
+  observedAt: string;
+  effectiveAt: string | null;
+  expiresAt: string;
 }
 export interface Project {
   id: string;
@@ -93,6 +120,7 @@ export interface Snapshot {
   localRuns: LocalRun[];
   settings: Settings;
   providers: Provider[];
+  resetEvents?: LocalResetEvent[];
   history: Observation[];
   projects: Project[];
   cloud: {
@@ -150,6 +178,18 @@ export const defaults: Settings = {
   localAiConsent: false,
   resultEvents: false,
   localNotifications: false,
+  resetNotifications: false,
+  resetAlerts: {
+    scheduled: true,
+    changed: true,
+    increased: true,
+    announcements: false,
+    offers: false,
+    providers: ["codex", "claude"],
+    inApp: true,
+    email: true,
+    projectDetailsInEmail: false,
+  },
 };
 export const empty: Snapshot = {
   settings: defaults,

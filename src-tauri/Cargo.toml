@@ -1,6 +1,6 @@
 [package]
 name = "maxxit"
-version = "0.1.13"
+version = "0.1.14"
 edition = "2021"
 rust-version = "1.94"
 license = "MIT"
@@ -35,6 +35,7 @@ tauri-plugin-process = "=2.4.0"
 tauri-plugin-notification = "2"
 base64 = "=0.22.1"
 minisign-verify = "=0.2.5"
+chrono-tz = "=0.10.4"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSWindow"] }

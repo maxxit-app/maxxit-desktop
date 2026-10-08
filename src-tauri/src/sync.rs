@@ -14,7 +14,7 @@ pub fn allowed(settings: &Settings, kind: &str) -> bool {
 pub fn shared_preferences(settings: &Settings) -> Value {
     json!({"theme":settings.theme,"generationMode":settings.generation_mode,"timezone":settings.timezone,
         "hoursBefore":settings.hours_before,"shortHoursBefore":settings.short_hours_before,"minRemaining":settings.min_remaining,
-        "quietStart":settings.quiet_start,"quietEnd":settings.quiet_end,"dailyLimit":settings.daily_limit})
+        "quietStart":settings.quiet_start,"quietEnd":settings.quiet_end,"dailyLimit":settings.daily_limit,"resetAlerts":settings.reset_alerts})
 }
 impl Store {
     pub fn sync_batch(&self, settings: &Settings) -> Result<Vec<Value>, String> {

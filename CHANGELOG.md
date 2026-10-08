@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.14 October 8 2026
+
+- Add durable reset-change detection, event history, provider controls and primary-Mac desktop notices.
+- Share additive provider identities and reset preferences; keep email and reviewed offer controls attached to the verified account.
+- Fit local idea prompts to recent reported usage windows without automatically starting work. See docs/reset-alerts.md for acceptance and recovery.
+- Support macOS 14 or later on Apple silicon and Intel. Physical Intel and macOS 14 runtime acceptance remain unverified.
+
 ## 0.1.13 October 8 2026
 
 - Display discovered projects in a compact table with descriptions, archive status, and row actions.

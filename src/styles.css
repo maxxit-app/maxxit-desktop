@@ -1482,3 +1482,16 @@ footer .muted {
   padding-top: 20px;
   border-top: 1px solid var(--line, #e4e8de);
 }
+
+.reset-alert-settings {
+  grid-column: 1 / -1;
+}
+.reset-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  column-gap: 32px;
+}
+
+.reset-alert-settings input[aria-label="Notification timezone"] {
+  width: min(260px, 60%);
+}

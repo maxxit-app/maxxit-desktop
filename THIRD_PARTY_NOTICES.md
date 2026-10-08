@@ -44,6 +44,7 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | cfg-if | 1.0.5 | MIT OR Apache-2.0 | https://github.com/rust-lang/cfg-if |
 | Cargo | chacha20 | 0.10.2 | MIT OR Apache-2.0 | https://github.com/RustCrypto/stream-ciphers |
 | Cargo | chrono | 0.4.45 | MIT OR Apache-2.0 | https://github.com/chronotope/chrono |
+| Cargo | chrono-tz | 0.10.4 | MIT OR Apache-2.0 | https://github.com/chronotope/chrono-tz |
 | Cargo | cookie | 0.18.2 | MIT OR Apache-2.0 | https://github.com/SergioBenitez/cookie-rs |
 | Cargo | core-foundation | 0.10.1 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
 | Cargo | core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
@@ -191,10 +192,12 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | parking_lot | 0.12.5 | MIT OR Apache-2.0 | https://github.com/Amanieu/parking_lot |
 | Cargo | parking_lot_core | 0.9.12 | MIT OR Apache-2.0 | https://github.com/Amanieu/parking_lot |
 | Cargo | percent-encoding | 2.3.2 | MIT OR Apache-2.0 | https://github.com/servo/rust-url/ |
+| Cargo | phf | 0.12.1 | MIT | https://github.com/rust-phf/rust-phf |
 | Cargo | phf | 0.13.1 | MIT | https://github.com/rust-phf/rust-phf |
 | Cargo | phf_codegen | 0.13.1 | MIT | https://github.com/rust-phf/rust-phf |
 | Cargo | phf_generator | 0.13.1 | MIT | https://github.com/rust-phf/rust-phf |
 | Cargo | phf_macros | 0.13.1 | MIT | https://github.com/rust-phf/rust-phf |
+| Cargo | phf_shared | 0.12.1 | MIT | https://github.com/rust-phf/rust-phf |
 | Cargo | phf_shared | 0.13.1 | MIT | https://github.com/rust-phf/rust-phf |
 | Cargo | pin-project-lite | 0.2.17 | Apache-2.0 OR MIT | https://github.com/taiki-e/pin-project-lite |
 | Cargo | pkg-config | 0.3.34 | MIT OR Apache-2.0 | https://github.com/rust-lang/pkg-config-rs |

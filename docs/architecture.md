@@ -12,13 +12,15 @@ installation and restart are main-window permissions.
 
 providers.rs reads bounded Codex rollout records and the Claude bridge capture.
 model.rs normalizes independent allowance windows without inventing missing data.
-storage.rs maintains SQLite schema version 1, rejects newer schemas, and runs
+storage.rs maintains SQLite schema version 4, rejects newer schemas, and runs
 initialization in a transaction. cloud.rs constrains the service origin, disables
 redirects, bounds response reads, and keeps device credentials in Keychain.
 
-The app polls locally once a minute, including while its main window is closed.
+The app normally polls locally about every five seconds, with bounded failure backoff, including while its main window is closed.
 The TypeScript update controller exposes checks, progress, retry, and restart
 after explicit user actions. Tauri verifies signatures natively.
 
 See cloud-contract.md for the public client contract, privacy.md for data flow,
 threat-model.md for trust boundaries, and releasing.md for binary distribution.
+
+See [reset-alerts.md](reset-alerts.md) for change detection, native delivery and schema-4 recovery.

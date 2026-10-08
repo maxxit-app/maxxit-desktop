@@ -19,6 +19,10 @@ pub struct UsageWindow {
 pub struct Observation {
     pub provider: String,
     pub account_label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_account_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_version: Option<String>,
     pub observed_at: String,
     pub source: String,
     pub windows: Vec<UsageWindow>,
@@ -131,6 +135,8 @@ pub struct Settings {
     pub local_ai_consent: bool,
     pub result_events: bool,
     pub local_notifications: bool,
+    pub reset_notifications: bool,
+    pub reset_alerts: ResetPreferences,
 }
 
 impl Default for Settings {
@@ -161,6 +167,8 @@ impl Default for Settings {
             local_ai_consent: false,
             result_events: false,
             local_notifications: false,
+            reset_notifications: false,
+            reset_alerts: ResetPreferences::default(),
         }
     }
 }
@@ -233,6 +241,8 @@ mod tests {
         let mut observation = Observation {
             provider: "codex".into(),
             account_label: "synthetic".into(),
+            provider_account_id: None,
+            source_version: None,
             observed_at: (now - chrono::Duration::minutes(316)).to_rfc3339(),
             source: "codex-local".into(),
             windows: vec![normalize_window_at(
@@ -307,5 +317,34 @@ mod tests {
             .availability,
             "expired"
         );
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ResetPreferences {
+    pub scheduled: bool,
+    pub changed: bool,
+    pub increased: bool,
+    pub announcements: bool,
+    pub offers: bool,
+    pub providers: Vec<String>,
+    pub in_app: bool,
+    pub email: bool,
+    pub project_details_in_email: bool,
+}
+impl Default for ResetPreferences {
+    fn default() -> Self {
+        Self {
+            scheduled: true,
+            changed: true,
+            increased: true,
+            announcements: false,
+            offers: false,
+            providers: vec!["codex".into(), "claude".into()],
+            in_app: true,
+            email: true,
+            project_details_in_email: false,
+        }
     }
 }
