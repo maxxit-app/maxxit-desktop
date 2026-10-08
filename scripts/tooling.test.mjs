@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -16,6 +17,7 @@ import {
   validateManifest,
   verifyChecksums,
   archiveEntriesSafe,
+  readArchiveEntries,
 } from "./release-lib.mjs";
 import { diagnostics } from "./diagnostics.mjs";
 import { parseDocument } from "yaml";
@@ -109,8 +111,21 @@ test("updater extraction rejects traversal and unexpected app names", () => {
     ["/etc/passwd"],
     ["Maxxit.app/../../escape"],
     ["Other.app/Contents"],
+    ["._Maxxit.app"],
+    ["Maxxit.app/Contents/._CodeResources"],
   ])
     assert.throws(() => archiveEntriesSafe(entries));
+});
+test("raw updater validation catches AppleDouble records hidden by BSD tar", (t) => {
+  const root = fixture(t);
+  const archive = path.join(root, "update.tar.gz");
+  execFileSync("python3", [
+    "-c",
+    "import io,sys,tarfile; t=tarfile.open(sys.argv[1], 'w:gz'); m=tarfile.TarInfo('._Maxxit.app'); m.size=1; t.addfile(m,io.BytesIO(b'x')); t.close()",
+    archive,
+  ]);
+  assert.deepEqual(readArchiveEntries(archive), ["._Maxxit.app"]);
+  assert.throws(() => archiveEntriesSafe(readArchiveEntries(archive)));
 });
 test("diagnostics contain only allowlisted metadata", () => {
   const result = diagnostics({

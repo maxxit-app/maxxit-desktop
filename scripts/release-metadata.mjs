@@ -8,6 +8,7 @@ import {
   validateManifest,
   verifyChecksums,
   archiveEntriesSafe,
+  readArchiveEntries,
   changelogNotes,
 } from "./release-lib.mjs";
 const git = (...args) =>
@@ -97,13 +98,7 @@ try {
       version,
       readFileSync(path.join(directory, payloads[2]), "utf8"),
     );
-    const entries = execFileSync(
-      "tar",
-      ["-tzf", path.join(directory, payloads[1])],
-      { encoding: "utf8" },
-    )
-      .trim()
-      .split("\n");
+    const entries = readArchiveEntries(path.join(directory, payloads[1]));
     archiveEntriesSafe(entries);
     console.log("Release metadata, checksums and archive paths verified.");
   } else

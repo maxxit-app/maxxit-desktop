@@ -12,7 +12,7 @@ trap 'rm -rf "$output"' EXIT
 codesign --verify --deep --strict --all-architectures -R='identifier "app.maxxit.desktop" and anchor apple generic and certificate leaf[subject.OU] = "DXYF58SJPA"' "$app"
 # The signed binary must identify the same revision as the reviewed checkout.
 [[ "$("$app/Contents/MacOS/maxxit" --version)" == "maxxit $version $sha" ]] || { echo 'App source revision/version mismatch.' >&2; exit 1; }
-tar -czf "$output/Maxxit-universal.app.tar.gz" -C "$(dirname "$app")" "$(basename "$app")"
+COPYFILE_DISABLE=1 tar -czf "$output/Maxxit-universal.app.tar.gz" -C "$(dirname "$app")" "$(basename "$app")"
 cp "$dmg" "$output/Maxxit-universal.dmg"
 pnpm tauri signer sign --private-key-path "$TAURI_SIGNING_PRIVATE_KEY_PATH" --password "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" --app-version "$version" "$output/Maxxit-universal.app.tar.gz" > "$output/signing.log"
 node scripts/release-metadata.mjs manifest "$version" "$output"
