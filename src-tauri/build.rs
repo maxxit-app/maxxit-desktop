@@ -40,6 +40,10 @@ fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "snapshot",
+            "account_status",
+            "cloud_cancel",
+            "legacy_preview",
+            "legacy_import",
             "export_token_csv",
             "tray_action",
             "tray_resize",
@@ -56,6 +60,12 @@ fn main() {
             "cloud_action",
             "cloud_preferences",
             "open_link",
+            "local_analysis",
+            "local_task",
+            "local_import",
+            "local_remove",
+            "local_export",
+            "remove_cloud_copies",
         ]),
     ))
     .expect("Tauri permission generation failed");

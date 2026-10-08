@@ -5,8 +5,9 @@ stable Maxxit-universal.dmg from https://maxxit.app/download or GitHub Releases.
 
 1. Open the DMG, drag Maxxit to Applications, and eject the mounted disk.
 2. Launch Maxxit from /Applications. Keep macOS security protection enabled.
-3. Sign in through the official Codex or Claude CLI, then open Connections.
-4. Select Connect local usage. For Claude, review and approve the status-line
+3. Sign in or create a free Maxxit account in your browser and approve this Mac. Choose the data to mirror on the web.
+4. Sign in through the official Codex or Claude CLI, then open Connections.
+5. Select Connect local usage. For Claude, review and approve the status-line
    change before applying it. Use the assistant to produce a fresh allowance reading.
 
 ![Connections with sample data](screenshots/connections.jpg)
@@ -14,8 +15,7 @@ stable Maxxit-universal.dmg from https://maxxit.app/download or GitHub Releases.
 The existing screenshots show the app with labeled sample data. Download and DMG
 screenshots are still a release acceptance task and must come from the real installer.
 
-Local analytics require no Maxxit account. Optional cloud pairing and usage/project
-sharing are separate choices. Review privacy.md before enabling sharing. Hosted
+A Maxxit account is required. Local analytics remain free, and verified accounts can use local features offline for seven days. Usage, projects, preferences, and detailed workflows have separate optional web sharing scopes. Review privacy.md before enabling sharing. Hosted
 billing/email availability is determined by the service; ideas never run automatically.
 
 ## Other install paths
@@ -47,7 +47,7 @@ and Tauri's updater signature establish the separate trust checks.
 ## Disconnect and uninstall
 
 Disconnect Claude first to restore its previous status line when safe. Disconnect
-the Maxxit account to revoke the device credential; retry if the network is unavailable.
+the Maxxit account to lock local access and queue credential revocation for the next connection.
 Quit from the menu bar. Remove the app from /Applications for DMG/Homebrew installs,
 or ~/Applications for the script.
 

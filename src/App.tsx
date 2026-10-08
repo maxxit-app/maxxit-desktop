@@ -1,3 +1,5 @@
+import { AccountGate } from "./AccountGate";
+import { LocalIdeas } from "./LocalIdeas";
 import { version } from "../package.json";
 import { useCallback, useEffect, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
@@ -28,6 +30,7 @@ import {
   type Snapshot,
   type Provider,
   type Settings,
+  type AccountState,
 } from "./types";
 import { demoSnapshot } from "./demo";
 import { UpdateNotice } from "./UpdateNotice";
@@ -50,11 +53,12 @@ function ProviderMark({ name }: { name: string }) {
     </span>
   );
 }
-function WindowCard({ provider }: { provider: Provider }) {
+export function WindowCard({ provider }: { provider: Provider }) {
+  const now = Date.now();
   const windows = provider.observation?.windows ?? [];
   const stale =
     provider.observation &&
-    Date.now() - Date.parse(provider.observation.observedAt) > 2 * 3600000;
+    now - Date.parse(provider.observation.observedAt) >= 2 * 3600000;
   return (
     <article className="card allowance-card">
       <div className="card-top">
@@ -77,21 +81,26 @@ function WindowCard({ provider }: { provider: Provider }) {
       </div>
       {windows.length ? (
         windows.map((w) => {
-          const value = stale ? null : remaining(w);
+          const value = remaining(w, now);
           return (
             <div className="allowance" key={`${w.bucketId}:${w.windowId}`}>
               <div className="allowance-label">
                 <span>{w.label ?? w.windowId}</span>
                 <span className="mono">
-                  {value === null ? "—" : `${Math.round(value)}% left`}
+                  {value === null
+                    ? "Unavailable"
+                    : `${Math.round(value)}% ${stale ? "last read" : "left"}`}
                 </span>
               </div>
               <div className="progress">
                 <span style={{ width: `${value ?? 0}%` }} />
               </div>
               <div className="small muted">
-                {resetLabel(w.resetsAt)}
+                {resetLabel(w.resetsAt, now)}
                 {value === null ? " · Usage unavailable" : ""}
+                {value !== null && stale
+                  ? " · Use your assistant for a fresh reading."
+                  : ""}
               </div>
             </div>
           );
@@ -146,10 +155,18 @@ function Toggle({
 }
 export default function App() {
   const [data, setData] = useState<Snapshot>(demo ? demoSnapshot() : empty);
+  const [account, setAccount] = useState<AccountState>({ status: "checking" });
   const [tab, setTab] = useState("Overview");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [add, setAdd] = useState(false);
+  const [legacy, setLegacy] = useState<{
+    accountId: string;
+    projects: { id: string; name: string }[];
+    observations: number;
+    runs: number;
+  } | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [preview, setPreview] = useState<{
@@ -163,11 +180,18 @@ export default function App() {
   );
   const [shareUsage, setShareUsage] = useState(false);
   const [shareProjects, setShareProjects] = useState(false);
+  const [shareResults, setShareResults] = useState(false);
   const refresh = useCallback(async () => {
     if (native) {
       try {
-        setData(await invoke<Snapshot>("snapshot"));
+        const identity = await invoke<AccountState>("account_status");
+        setAccount(identity);
+        if (["authenticated", "offline"].includes(identity.status))
+          setData(await invoke<Snapshot>("snapshot"));
+        else setData(empty);
       } catch (e) {
+        setAccount({ status: "error", error: String(e) });
+        setData(empty);
         setMessage(String(e));
       }
     }
@@ -183,9 +207,14 @@ export default function App() {
       void listen("usage-updated", () => void refresh()).then((f) => {
         cleanup = f;
       });
-    const timer = setInterval(() => void refresh(), 60000);
+    const timer = setInterval(() => void refresh(), 5000);
+    const focus = () => void refresh();
+    window.addEventListener("focus", focus);
+    window.addEventListener("online", focus);
     return () => {
       clearInterval(timer);
+      window.removeEventListener("focus", focus);
+      window.removeEventListener("online", focus);
       cleanup?.();
     };
   }, [refresh]);
@@ -212,10 +241,10 @@ export default function App() {
     setMessage("");
     try {
       await callback();
-      await refresh();
     } catch (e) {
       setMessage(String(e));
     } finally {
+      await refresh();
       setBusy(false);
     }
   }
@@ -224,6 +253,7 @@ export default function App() {
     if (native) {
       await action(async () => {
         await invoke("save_settings", { settings: updated });
+        if (data.cloud.connected) await invoke("cloud_sync");
         if (data.cloud.connected && data.cloud.plan === "pro")
           await invoke("cloud_preferences");
       });
@@ -252,7 +282,7 @@ export default function App() {
     ],
     Projects: [
       "Projects",
-      "Add project descriptions to get task suggestions with Maxxit Pro.",
+      "Keep project descriptions for local ideas and your synced web workspace.",
     ],
     Ideas: ["Project ideas", "Suggested tasks and prompts for your projects."],
     Connections: [
@@ -264,6 +294,8 @@ export default function App() {
       "Manage appearance, menu bar settings, and email reminders.",
     ],
   };
+  if (!demo && !["authenticated", "offline"].includes(account.status))
+    return <AccountGate account={account} refresh={refresh} />;
   return (
     <div className="app-shell">
       <aside>
@@ -283,7 +315,10 @@ export default function App() {
             >
               <Icon size={18} />
               {label}
-              {label === "Ideas" && <span className="pro-pill">PRO</span>}
+              {label === "Ideas" &&
+                data.settings.generationMode === "hosted" && (
+                  <span className="pro-pill">PRO</span>
+                )}
             </button>
           ))}
         </nav>
@@ -291,8 +326,16 @@ export default function App() {
           <div className="account">
             <div className="avatar">M</div>
             <div>
-              <strong>This Mac</strong>
-              <span>{demo ? "Demo workspace" : "Free plan"}</span>
+              <strong>
+                {data.cloud.data?.account?.email ||
+                  data.cloud.data?.account?.id ||
+                  "This Mac"}
+              </strong>
+              <span>
+                {demo
+                  ? "Demo workspace"
+                  : `${data.cloud.plan === "pro" ? "Pro" : data.cloud.plan === "free" ? "Free" : "Unverified"} plan${account.status === "offline" ? " · Offline" : ""}`}
+              </span>
             </div>
             <ChevronRight size={15} />
           </div>
@@ -361,7 +404,10 @@ export default function App() {
                 </div>
                 <div>
                   <h3>Project suggestions</h3>
-                  <p>Add a project to get task suggestions with Maxxit Pro.</p>
+                  <p>
+                    Add a project, then prepare a reviewed prompt in Ideas.
+                    Hosted suggestions require Pro.
+                  </p>
                 </div>
                 <button
                   className="button secondary"
@@ -431,7 +477,15 @@ export default function App() {
             <>
               <div className="section-heading">
                 <span>{data.projects.length} projects</span>
-                <button className="button" onClick={() => setAdd(true)}>
+                <button
+                  className="button"
+                  onClick={() => {
+                    setEditing(null);
+                    setName("");
+                    setDescription("");
+                    setAdd(true);
+                  }}
+                >
                   <Plus size={16} /> Add project
                 </button>
               </div>
@@ -462,8 +516,48 @@ export default function App() {
                         <Trash2 size={15} />
                       </button>
                     </div>
-                    <h3>{p.name}</h3>
+                    <h3>
+                      {p.name}{" "}
+                      {p.archived && <span className="tag">Archived</span>}
+                    </h3>
                     <p>{p.description || "No description yet."}</p>
+                    <div className="connection-actions">
+                      <button
+                        className="button secondary"
+                        onClick={() => {
+                          setEditing(p.id);
+                          setName(p.name);
+                          setDescription(p.description);
+                          setAdd(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="button secondary"
+                        disabled={busy}
+                        onClick={() =>
+                          void action(async () => {
+                            if (native)
+                              await invoke("save_project", {
+                                ...p,
+                                archived: !p.archived,
+                              });
+                            else
+                              setData({
+                                ...data,
+                                projects: data.projects.map((x) =>
+                                  x.id === p.id
+                                    ? { ...x, archived: !x.archived }
+                                    : x,
+                                ),
+                              });
+                          })
+                        }
+                      >
+                        {p.archived ? "Restore" : "Archive"}
+                      </button>
+                    </div>
                   </article>
                 ))}
               </div>
@@ -472,7 +566,15 @@ export default function App() {
                   <Folder size={30} />
                   <h3>No projects yet</h3>
                   <p>Add a project name and description.</p>
-                  <button className="button" onClick={() => setAdd(true)}>
+                  <button
+                    className="button"
+                    onClick={() => {
+                      setEditing(null);
+                      setName("");
+                      setDescription("");
+                      setAdd(true);
+                    }}
+                  >
                     Add your first project <Plus size={15} />
                   </button>
                 </div>
@@ -483,97 +585,115 @@ export default function App() {
               </p>
             </>
           )}
-          {tab === "Ideas" && data.cloud.plan === "pro" && (
-            <>
-              <div className="section-heading">
-                <h2>Suggested tasks</h2>
+          {tab === "Ideas" && data.settings.generationMode === "local" && (
+            <LocalIdeas
+              data={data}
+              native={native}
+              busy={busy}
+              action={action}
+              settings={settings}
+            />
+          )}
+          {tab === "Ideas" &&
+            data.settings.generationMode === "hosted" &&
+            data.cloud.plan === "pro" && (
+              <>
+                <div className="section-heading">
+                  <h2>Suggested tasks</h2>
+                  <button
+                    className="button"
+                    disabled={busy || !data.settings.aiConsent}
+                    onClick={() =>
+                      void action(async () => {
+                        await invoke("cloud_action", { action: "generate" });
+                        setMessage(
+                          "Ideas are being prepared. This view refreshes automatically.",
+                        );
+                      })
+                    }
+                  >
+                    Refresh ideas <RefreshCw size={15} />
+                  </button>
+                </div>
+                {!data.settings.aiConsent && (
+                  <div className="notice">
+                    Enable project sharing in Settings to request ideas.
+                  </div>
+                )}
+                {data.cloud.data?.suggestions?.map((idea) => (
+                  <article className="card project-card" key={idea.id}>
+                    <h3>{idea.title}</h3>
+                    <p>{idea.description}</p>
+                    <code className="code-block">{idea.readyToCopyPrompt}</code>
+                    <button
+                      className="button secondary"
+                      onClick={() =>
+                        void navigator.clipboard
+                          .writeText(idea.readyToCopyPrompt)
+                          .then(() => setMessage("Prompt copied."))
+                      }
+                    >
+                      Copy prompt
+                    </button>
+                  </article>
+                ))}
+              </>
+            )}
+          {tab === "Ideas" &&
+            data.settings.generationMode === "hosted" &&
+            data.cloud.plan !== "pro" && (
+              <div className="card pro-card">
+                <div className="pro-symbol">
+                  <Lightbulb size={35} />
+                </div>
+                <span className="tag">MAXXIT PRO</span>
+                <h2>Project ideas and reset reminders</h2>
+                <p>
+                  Get project ideas and an email before a selected allowance
+                  window resets. You choose the task and run it in your coding
+                  assistant.
+                </p>
+                <ul>
+                  <li>
+                    <Check size={17} /> Ideas based on the projects you share
+                  </li>
+                  <li>
+                    <Check size={17} /> Reset reminders with quiet hours
+                  </li>
+                  <li>
+                    <Check size={17} /> Up to 10 idea refreshes per day
+                  </li>
+                </ul>
+                <div className="price">
+                  $9.99 <span>/ month</span>
+                </div>
                 <button
                   className="button"
-                  disabled={busy || !data.settings.aiConsent}
+                  disabled={
+                    busy ||
+                    account.status !== "authenticated" ||
+                    !data.cloud.data?.billing?.billingReady
+                  }
                   onClick={() =>
                     void action(async () => {
-                      await invoke("cloud_action", { action: "generate" });
-                      setMessage(
-                        "Ideas are being prepared. This view refreshes automatically.",
+                      if (!data.cloud.connected) {
+                        setTab("Connections");
+                        setMessage("Connect your Maxxit account to subscribe.");
+                        return;
+                      }
+                      const result = await invoke<{ url: string }>(
+                        "cloud_action",
+                        { action: "checkout" },
                       );
+                      await invoke("open_link", { url: result.url });
                     })
                   }
                 >
-                  Refresh ideas <RefreshCw size={15} />
+                  Get Maxxit Pro <ArrowUpRight size={15} />
                 </button>
+                <small>Cancel anytime. Local analytics stay free.</small>
               </div>
-              {!data.settings.aiConsent && (
-                <div className="notice">
-                  Enable project sharing in Settings to request ideas.
-                </div>
-              )}
-              {data.cloud.data?.suggestions?.map((idea) => (
-                <article className="card project-card" key={idea.id}>
-                  <h3>{idea.title}</h3>
-                  <p>{idea.description}</p>
-                  <code className="code-block">{idea.readyToCopyPrompt}</code>
-                  <button
-                    className="button secondary"
-                    onClick={() =>
-                      void navigator.clipboard
-                        .writeText(idea.readyToCopyPrompt)
-                        .then(() => setMessage("Prompt copied."))
-                    }
-                  >
-                    Copy prompt
-                  </button>
-                </article>
-              ))}
-            </>
-          )}
-          {tab === "Ideas" && data.cloud.plan !== "pro" && (
-            <div className="card pro-card">
-              <div className="pro-symbol">
-                <Lightbulb size={35} />
-              </div>
-              <span className="tag">MAXXIT PRO</span>
-              <h2>Project ideas and reset reminders</h2>
-              <p>
-                Get project ideas and an email before a selected allowance
-                window resets. You choose the task and run it in your coding
-                assistant.
-              </p>
-              <ul>
-                <li>
-                  <Check size={17} /> Ideas based on the projects you share
-                </li>
-                <li>
-                  <Check size={17} /> Reset reminders with quiet hours
-                </li>
-                <li>
-                  <Check size={17} /> Up to 10 idea refreshes per day
-                </li>
-              </ul>
-              <div className="price">
-                $9.99 <span>/ month</span>
-              </div>
-              <button
-                className="button"
-                onClick={() =>
-                  void action(async () => {
-                    if (!data.cloud.connected) {
-                      setTab("Connections");
-                      setMessage("Connect your Maxxit account to subscribe.");
-                      return;
-                    }
-                    const result = await invoke<{ url: string }>(
-                      "cloud_action",
-                      { action: "checkout" },
-                    );
-                    await invoke("open_link", { url: result.url });
-                  })
-                }
-              >
-                Get Maxxit Pro <ArrowUpRight size={15} />
-              </button>
-              <small>Cancel anytime. Local analytics stay free.</small>
-            </div>
-          )}
+            )}
           {tab === "Connections" && (
             <>
               <div className="notice">
@@ -632,10 +752,98 @@ export default function App() {
                 </article>
               ))}
               <article className="card connection-card">
-                <h2>Maxxit account</h2>
+                <h2>Web sync</h2>
                 <p>
-                  Connect your account for paid ideas and email reminders. Local
-                  analytics work without an account.
+                  Your desktop owns these records. Web views update
+                  automatically after accepted uploads.
+                </p>
+                <Toggle
+                  label="Sync allowance history and analytics"
+                  checked={data.settings.cloudSync}
+                  disabled={!data.cloud.data?.identity?.consent.usage}
+                  onChange={(cloudSync) => void settings({ cloudSync })}
+                />
+                <Toggle
+                  label="Sync projects"
+                  detail="Share descriptions even in local idea mode."
+                  checked={data.settings.projectSync}
+                  disabled={!data.cloud.data?.identity?.consent.metadata}
+                  onChange={(projectSync) => void settings({ projectSync })}
+                />
+                <Toggle
+                  label="Sync shared preferences"
+                  checked={data.settings.accountSync}
+                  disabled={!data.cloud.data?.identity?.consent.accountSync}
+                  onChange={(accountSync) => void settings({ accountSync })}
+                />
+                <Toggle
+                  label="Sync ideas and task reports"
+                  detail="Includes reviewed prompts and imported reports. Hosted AI stays separate."
+                  checked={data.settings.workflowSync}
+                  disabled={!data.cloud.data?.identity?.consent.workflowDetails}
+                  onChange={(workflowSync) => void settings({ workflowSync })}
+                />
+                <p className="small muted">
+                  To approve more categories, sign out and sign in again with
+                  the same account. Your local data stays with that account.
+                </p>
+                {data.sync?.error && <p role="alert">{data.sync.error}</p>}
+              </article>
+              <article className="card connection-card">
+                <h2>Maxxit account</h2>
+                {data.legacyDataAvailable && (
+                  <div className="notice">
+                    <p>
+                      Earlier local data is preserved. Review it before adding
+                      it to this account.
+                    </p>
+                    <button
+                      className="button secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        void action(async () => {
+                          setLegacy(await invoke("legacy_preview"));
+                        })
+                      }
+                    >
+                      Review earlier data
+                    </button>
+                    {legacy && (
+                      <>
+                        <p>
+                          {legacy.projects.length} projects,{" "}
+                          {legacy.observations} observations, and {legacy.runs}{" "}
+                          runs will belong to{" "}
+                          {data.cloud.data?.account?.email || legacy.accountId}.
+                          Sharing follows your current settings.
+                        </p>
+                        <ul>
+                          {legacy.projects.map((p) => (
+                            <li key={p.id}>{p.name}</li>
+                          ))}
+                        </ul>
+                        <button
+                          className="button"
+                          disabled={busy}
+                          onClick={() =>
+                            void action(async () => {
+                              await invoke("legacy_import", {
+                                accountId: legacy.accountId,
+                              });
+                              setLegacy(null);
+                            })
+                          }
+                        >
+                          Import into this account
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+                <p>
+                  Your account owns this Mac’s synced data, Pro subscription,
+                  and email reminders. Choose sharing independently of hosted
+                  AI.
                 </p>
                 {data.cloud.error && (
                   <div className="notice error">{data.cloud.error}</div>
@@ -643,18 +851,32 @@ export default function App() {
                 {data.cloud.connected ? (
                   <div className="connection-actions">
                     <span className="tag">{data.cloud.plan.toUpperCase()}</span>
+                    <span className="small muted">
+                      {data.sync?.pending
+                        ? `${data.sync.pending} changes waiting to sync`
+                        : data.sync?.lastSyncAt
+                          ? `Synced ${new Date(data.sync.lastSyncAt).toLocaleTimeString()}`
+                          : "Waiting for first sync"}
+                    </span>
                     <button
                       className="button secondary"
                       onClick={() =>
                         void action(async () => {
+                          setAccount({ status: "signed_out" });
+                          setData(empty);
                           await invoke("cloud_disconnect");
                         })
                       }
                     >
-                      Disconnect account
+                      Sign out
                     </button>
                     <button
                       className="button"
+                      disabled={
+                        busy ||
+                        account.status !== "authenticated" ||
+                        !data.cloud.data?.billing?.billingReady
+                      }
                       onClick={() =>
                         void action(async () => {
                           const result = await invoke<{ url: string }>(
@@ -685,9 +907,15 @@ export default function App() {
                     />
                     <Toggle
                       label="Allow project sharing"
-                      detail="Share descriptions you write for project ideas."
+                      detail="Share descriptions for hosted ideas. Only used in hosted mode."
                       checked={shareProjects}
                       onChange={setShareProjects}
+                    />
+                    <Toggle
+                      label="Allow completion notifications"
+                      detail="Share run IDs and completion status only. Server delivery requires Pro."
+                      checked={shareResults}
+                      onChange={setShareResults}
                     />
                     {pairing ? (
                       <div className="connection-actions">
@@ -703,7 +931,10 @@ export default function App() {
                               await invoke("cloud_redeem");
                               await settings({
                                 cloudSync: shareUsage,
-                                aiConsent: shareProjects,
+                                aiConsent:
+                                  data.settings.generationMode === "hosted" &&
+                                  shareProjects,
+                                resultEvents: shareResults,
                               });
                               setPairing(null);
                             })
@@ -729,6 +960,7 @@ export default function App() {
                             }>("cloud_start", {
                               usage: shareUsage,
                               metadata: shareProjects,
+                              completionEvents: shareResults,
                             });
                             setPairing(result);
                             await invoke("open_link", { url: result.url });
@@ -845,7 +1077,7 @@ export default function App() {
                   <span>Minimum remaining</span>
                   <input
                     type="number"
-                    min="0"
+                    min="1"
                     max="100"
                     value={data.settings.minRemaining}
                     onChange={(e) =>
@@ -882,9 +1114,46 @@ export default function App() {
               <section className="card settings-card">
                 <h2>Privacy</h2>
                 <p>
-                  Usage observations are stored on this Mac for 90 days.
-                  Provider credentials and conversation content are excluded.
+                  Usage and local agent results are stored in an encrypted
+                  database on this Mac for 90 days. The database key is held in
+                  Mac Keychain.
                 </p>
+                <label>
+                  Suggestion provider
+                  <select
+                    value={data.settings.generationMode}
+                    onChange={(e) =>
+                      void settings({
+                        generationMode: e.target
+                          .value as Settings["generationMode"],
+                      })
+                    }
+                  >
+                    <option value="local">My own Codex or Claude</option>
+                    <option value="hosted">Maxxit hosted AI</option>
+                  </select>
+                </label>
+                <p className="small muted">
+                  Changing suggestion provider updates hosted generation for
+                  your Maxxit account after a successful sync. Local mode stops
+                  pending hosted work; existing cloud copies remain until you
+                  delete them.
+                </p>
+                <Toggle
+                  label="Local result notifications"
+                  detail="Show a generic macOS notification after importing results."
+                  checked={data.settings.localNotifications}
+                  onChange={(localNotifications) =>
+                    void settings({ localNotifications })
+                  }
+                />
+                <Toggle
+                  label="Send completion status to Maxxit"
+                  detail="Requires browser-approved completion scope and Pro. No project text or report content is sent. Reconnect to approve this scope if needed."
+                  checked={data.settings.resultEvents}
+                  onChange={(resultEvents) => void settings({ resultEvents })}
+                  disabled={!data.cloud.connected || data.cloud.plan !== "pro"}
+                />
                 <Toggle
                   label="Share usage with Maxxit"
                   detail="Needed for server-side reset reminders."
@@ -893,12 +1162,31 @@ export default function App() {
                   disabled={!data.cloud.connected}
                 />
                 <Toggle
-                  label="Share project descriptions for ideas"
+                  label="Share descriptions for hosted ideas"
                   detail="Only the descriptions you write here are sent."
                   checked={data.settings.aiConsent}
                   onChange={(aiConsent) => void settings({ aiConsent })}
-                  disabled={!data.cloud.connected}
+                  disabled={
+                    !data.cloud.connected ||
+                    data.settings.generationMode !== "hosted"
+                  }
                 />
+                <button
+                  className="button secondary"
+                  disabled={!native || !data.cloud.connected || busy}
+                  onClick={() =>
+                    void action(async () => {
+                      await invoke("remove_cloud_copies");
+                    })
+                  }
+                >
+                  Delete this device's cloud project copies and all hosted ideas
+                </button>
+                <p className="small muted">
+                  Deleting cloud copies removes this device's uploaded projects
+                  and all hosted suggestions for this account, including
+                  suggestions derived from other projects.
+                </p>
               </section>
             </div>
           )}
@@ -915,19 +1203,28 @@ export default function App() {
             onSubmit={(e) => {
               e.preventDefault();
               void action(async () => {
-                if (native) await invoke("save_project", { name, description });
+                if (native)
+                  await invoke("save_project", {
+                    name,
+                    description,
+                    id: editing,
+                  });
                 else
                   setData({
                     ...data,
-                    projects: [
-                      {
-                        id: crypto.randomUUID(),
-                        name,
-                        description,
-                        createdAt: new Date().toISOString(),
-                      },
-                      ...data.projects,
-                    ],
+                    projects: editing
+                      ? data.projects.map((p) =>
+                          p.id === editing ? { ...p, name, description } : p,
+                        )
+                      : [
+                          {
+                            id: crypto.randomUUID(),
+                            name,
+                            description,
+                            createdAt: new Date().toISOString(),
+                          },
+                          ...data.projects,
+                        ],
                   });
                 setAdd(false);
                 setName("");
@@ -936,7 +1233,7 @@ export default function App() {
             }}
           >
             <div className="card-top">
-              <h2>Add a project</h2>
+              <h2>{editing ? "Edit project" : "Add a project"}</h2>
               <button
                 type="button"
                 className="icon-button"

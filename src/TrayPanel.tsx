@@ -29,7 +29,7 @@ const count = (n: number) =>
     maximumFractionDigits: 1,
   }).format(n);
 
-function ProviderCard({
+export function ProviderCard({
   provider,
   now,
   open,
@@ -75,7 +75,7 @@ function ProviderCard({
       </div>
       {windows.length ? (
         windows.map((w) => {
-          const value = stale ? null : remaining(w, now);
+          const value = remaining(w, now);
           const reset = w.resetsAt
             ? new Date(w.resetsAt).toLocaleString(undefined, {
                 weekday: "short",
@@ -93,7 +93,7 @@ function ProviderCard({
                   ) : (
                     <>
                       {Math.round(value)}
-                      <small>% left</small>
+                      <small>{stale ? "% last read" : "% left"}</small>
                     </>
                   )}
                 </strong>
@@ -108,7 +108,7 @@ function ProviderCard({
                 aria-valuetext={
                   value === null
                     ? "Usage unavailable"
-                    : `${Math.round(value)} percent remaining`
+                    : `${Math.round(value)} percent remaining${stale ? " at last reading" : ""}`
                 }
               >
                 <span style={{ width: `${value ?? 0}%` }} />
@@ -170,7 +170,8 @@ export default function TrayPanel() {
       setData(await invoke<Snapshot>("snapshot"));
       setError("");
     } catch {
-      setError("Could not refresh usage. Try again.");
+      setData(empty);
+      setError("Sign in to Maxxit or retry your connection.");
     } finally {
       setBusy(false);
     }
@@ -259,6 +260,25 @@ export default function TrayPanel() {
         : data.cloud.data?.emailReady
           ? "On"
           : "Email unavailable";
+  if (
+    !demo &&
+    (!data.account ||
+      !["authenticated", "offline"].includes(data.account.status))
+  )
+    return (
+      <main className="tray-panel">
+        <header>
+          <strong>maxxit.</strong>
+        </header>
+        <section className="tray-empty">
+          <h2>Sign in to Maxxit</h2>
+          <p>Open the app to sign in before viewing usage.</p>
+          <button onClick={() => void action("Overview")}>
+            Open Maxxit <ArrowUpRight size={16} />
+          </button>
+        </section>
+      </main>
+    );
   return (
     <main className="tray-panel" data-theme={data.settings.theme}>
       <header className="tray-header">

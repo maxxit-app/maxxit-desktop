@@ -30,3 +30,5 @@ Version a new contract when needed and retain the previous supported contract
 through at least one announced desktop upgrade window. Test the oldest supported
 desktop against staging before a hosted deployment. Backend fixture/integration
 tests and production credentials stay in the private repository.
+
+The account-sync contract in [account-sync.md](account-sync.md) replaces current-state project uploads for desktop 0.1.11. Protocol-1 clients use `desktop/sync` and `desktop/privacy`, require verified login, and explicitly approve usage, projects, shared preferences, and detailed workflows. `desktop/preferences` changes server-owned email, AI, and reminder controls only. Sign-out locks locally before queued server revocation. Legacy endpoints remain for the documented upgrade window.

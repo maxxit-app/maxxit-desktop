@@ -48,6 +48,7 @@ export function demoSnapshot(): Snapshot {
     },
   }));
   return {
+    localRuns: [],
     settings: {
       ...defaults,
       theme: "light",

@@ -29,6 +29,9 @@ export interface Settings {
   background: boolean;
   trayProvider: string;
   cloudSync: boolean;
+  accountSync: boolean;
+  projectSync: boolean;
+  workflowSync: boolean;
   apiOrigin: string;
   claudeEnabled: boolean;
   codexEnabled: boolean;
@@ -43,14 +46,51 @@ export interface Settings {
   dailyLimit: number;
   email: boolean;
   aiConsent: boolean;
+  generationMode: "local" | "hosted";
+  localAiConsent: boolean;
+  resultEvents: boolean;
+  localNotifications: boolean;
 }
 export interface Project {
   id: string;
   name: string;
   description: string;
   createdAt: string;
+  archived?: boolean;
+  pinned?: boolean;
+}
+export interface LocalRun {
+  id: string;
+  projectId: string;
+  projectName: string;
+  parentId: string | null;
+  kind: "analysis" | "task";
+  state: string;
+  createdAt: string;
+  bundle: string;
+  suggestions: { title: string; description: string; prompt: string }[];
+  summary: string | null;
+  delivery: string;
+}
+export interface AccountState {
+  status:
+    | "checking"
+    | "signed_out"
+    | "authenticated"
+    | "offline"
+    | "revoked"
+    | "error";
+  accountId?: string | null;
+  deviceId?: string | null;
+  error?: string | null;
+  offlineUntil?: number;
+  pairing?: { code: string; url: string; expiresAt: string };
 }
 export interface Snapshot {
+  legacyDataAvailable?: boolean;
+  account?: AccountState;
+  sync?: { pending: number; lastSyncAt: string | null; error: string | null };
+  localRuns: LocalRun[];
   settings: Settings;
   providers: Provider[];
   history: Observation[];
@@ -68,6 +108,19 @@ export interface Snapshot {
       }[];
       generations: { id: string; state: string }[];
       emailReady?: boolean;
+      account?: { id: string; email: string | null };
+      identity?: {
+        consent: {
+          usage: boolean;
+          metadata: boolean;
+          accountSync: boolean;
+          workflowDetails: boolean;
+          completionEvents: boolean;
+        };
+        deviceId: string;
+      };
+      primaryDesktopId?: string;
+      billing?: { billingReady: boolean; plan: string };
     };
   };
 }
@@ -76,6 +129,9 @@ export const defaults: Settings = {
   background: true,
   trayProvider: "codex",
   cloudSync: false,
+  accountSync: false,
+  projectSync: false,
+  workflowSync: false,
   apiOrigin: "https://maxxit.app",
   claudeEnabled: false,
   codexEnabled: false,
@@ -90,6 +146,10 @@ export const defaults: Settings = {
   dailyLimit: 1,
   email: false,
   aiConsent: false,
+  generationMode: "local",
+  localAiConsent: false,
+  resultEvents: false,
+  localNotifications: false,
 };
 export const empty: Snapshot = {
   settings: defaults,
@@ -105,6 +165,7 @@ export const empty: Snapshot = {
   })),
   history: [],
   projects: [],
+  localRuns: [],
   cloud: { connected: false, plan: "free" },
 };
 export function remaining(
