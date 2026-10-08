@@ -65,6 +65,24 @@ export function demoSnapshot(): Snapshot {
           "Improve accessibility, clean up navigation, and add a writing archive.",
         createdAt: new Date(now).toISOString(),
       },
+      ...[
+        ["Notes app", "A small offline notebook with full-text search."],
+        ["Weekend recipes", ""],
+        [
+          "Open-source accessibility improvements",
+          "Review keyboard navigation, screen reader labels, contrast, and reduced motion across the app.",
+        ],
+        [
+          "Reading archive",
+          "An earlier experiment in organizing reading notes.",
+        ],
+      ].map(([name, description], index) => ({
+        id: `sample-${index}`,
+        name,
+        description,
+        archived: index === 3,
+        createdAt: new Date(now).toISOString(),
+      })),
     ],
     cloud: { connected: false, plan: "free" },
   };

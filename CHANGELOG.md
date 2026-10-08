@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.13 October 8 2026
+
+- Display discovered projects in a compact table with descriptions, archive status, and row actions.
+- Search project names and descriptions without changing the stored projects. Show matching counts and a clear-search action.
+- Preserve automatic discovery, project editing, and archive/remove behavior.
+- Support macOS 14 or later on Apple silicon and Intel. Physical Intel and macOS 14 runtime acceptance remain unverified.
+
 ## 0.1.12 October 8 2026
 
 - Discover locally saved Codex and Claude Code projects automatically after sign-in. Deduplicate folders used by both providers and preserve project identity when a Codex CLI folder becomes a saved workspace.
