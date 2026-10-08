@@ -30,7 +30,7 @@ keyring = { version = "3", features = ["apple-native"] }
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 url = "2"
-dirs = "6"
+dirs = "7"
 tauri-plugin-process = "=2.4.0"
 tauri-plugin-notification = "2"
 base64 = "=0.22.1"
