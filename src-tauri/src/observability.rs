@@ -846,7 +846,7 @@ impl Diagnostics {
                 json!({"type":ty,"value":code(name),"stacktrace":safe_stacktrace(frames),"mechanism":{"type":"maxxit","handled":!name.starts_with("app.")}})
             }).collect()
         };
-        json!({"event_id":event_id,"timestamp":raw["timestamp"].as_f64().unwrap_or(now() as f64),"platform":if raw["platform"]=="javascript"{"javascript"}else{"native"},"level":if name=="app.crash" || name=="app.panic" || name=="app.start.failed"{"fatal"}else{"error"},"release":self.release,"environment":self.environment,"sdk":{"name":"maxxit.desktop","version":"1","packages":[{"name":"sentry-rust","version":"0.49.3"},{"name":"@sentry/react","version":"10.75.0"}]},"message":code(name),"fingerprint":["{{ default }}",event_name(name)],"exception":{"values":exceptions},"debug_meta":{"images":images},"tags":{"event_name":event_name(name),"diagnostics_generation":operation.epoch.to_string(),"error_code":code(name),"operation_id":operation.id,"command":operation.name,"error_id":event_id,"origin":operation.origin,"source_commit":env!("MAXXIT_SOURCE_COMMIT")},"contexts":{"operation":{"name":operation.name,"operation_id":operation.id,"elapsed_ms":operation.start.elapsed().as_millis() as u64,"stack_origin":"capture_boundary"},"os":{"name":"macOS","version":self.os_version},"device":{"arch":std::env::consts::ARCH}},"extra":{"schema_version":1,"boot_id":raw.pointer("/tags/boot_id").and_then(Value::as_str).filter(|v|valid_id(v)).unwrap_or(&self.boot_id),"app_uptime_ms":self.started.elapsed().as_millis() as u64,"omitted_event_count":omitted_count,"diagnostic_history":history},"breadcrumbs":{"values":history.iter().map(|r|json!({"timestamp":r.timestamp,"category":r.name,"message":r.name,"level":"info","data":r.attributes})).collect::<Vec<_>>()}})
+        json!({"event_id":event_id,"timestamp":raw["timestamp"].as_f64().unwrap_or(now() as f64),"platform":if raw["platform"]=="javascript"{"javascript"}else{"native"},"level":if name=="app.crash" || name=="app.panic" || name=="app.start.failed"{"fatal"}else{"error"},"release":self.release,"environment":self.environment,"sdk":{"name":"maxxit.desktop","version":"1","packages":[{"name":"sentry-rust","version":"0.49.3"},{"name":"@sentry/react","version":"10.75.0"}]},"message":code(name),"fingerprint":["{{ default }}",event_name(name)],"exception":{"values":exceptions},"debug_meta":{"images":images},"tags":{"event_name":event_name(name),"diagnostics_generation":operation.epoch.to_string(),"error_code":code(name),"operation_id":operation.id,"command":operation.name,"error_id":event_id,"origin":operation.origin,"source_commit":env!("MAXXIT_SOURCE_COMMIT")},"contexts":{"operation":{"name":operation.name,"operation_id":operation.id,"elapsed_ms":operation.start.elapsed().as_millis() as u64,"stack_origin":"capture_boundary"},"trace":{"trace_id":operation.id,"span_id":&operation.id[..16],"op":operation.name},"os":{"name":"macOS","version":self.os_version},"device":{"arch":std::env::consts::ARCH}},"extra":{"schema_version":1,"boot_id":raw.pointer("/tags/boot_id").and_then(Value::as_str).filter(|v|valid_id(v)).unwrap_or(&self.boot_id),"app_uptime_ms":self.started.elapsed().as_millis() as u64,"omitted_event_count":omitted_count,"diagnostic_history":history},"breadcrumbs":{"values":history.iter().map(|r|json!({"timestamp":r.timestamp,"category":r.name,"message":r.name,"level":"info","data":r.attributes})).collect::<Vec<_>>()}})
     }
     pub fn capture(&self, raw: Value, name: &str, operation: &Operation) -> Option<String> {
         let safe = self.safe_event(&raw, name, operation);
@@ -902,6 +902,10 @@ impl Diagnostics {
         attributes.insert("release".into(), json!(self.release));
         attributes.insert("origin".into(), json!(operation.origin));
         attributes.insert("boot_id".into(), json!(self.boot_id));
+        attributes.insert("sentry.environment".into(), json!(self.environment));
+        attributes.insert("sentry.release".into(), json!(self.release));
+        attributes.insert("sentry.sdk.name".into(), json!("maxxit.desktop"));
+        attributes.insert("sentry.sdk.version".into(), json!("1"));
         let log = Log {
             level: if is_failure(name) {
                 LogLevel::Error
@@ -909,7 +913,7 @@ impl Diagnostics {
                 LogLevel::Info
             },
             body: name.into(),
-            trace_id: None,
+            trace_id: Some(operation.id.parse().expect("Validated operation trace ID")),
             timestamp: SystemTime::now(),
             severity_number: None,
             attributes: attributes
@@ -1322,6 +1326,28 @@ mod tests {
         assert!(empty
             .pointer("/exception/values/0/stacktrace/frames")
             .is_none());
+        drop(d);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn structured_logs_have_required_trace_id_and_match_error_context() {
+        let (dir, d, op) = fixture();
+        d.log("diagnostics.test", &op, json!({}));
+        let item = d.queue.next(now()).unwrap().unwrap();
+        assert_eq!(item.category, "log");
+        let payload = item.body.split(|b| *b == b'\n').nth(2).unwrap();
+        let log: Value = serde_json::from_slice(payload).unwrap();
+        assert_eq!(log["items"][0]["trace_id"], op.id);
+        assert_eq!(
+            log["items"][0]["attributes"]["sentry.environment"]["value"],
+            d.environment
+        );
+        assert_eq!(
+            log["items"][0]["attributes"]["sentry.release"]["value"],
+            d.release
+        );
+        let event = d.safe_event(&json!({}), "diagnostics.test", &op);
+        assert_eq!(event["contexts"]["trace"]["trace_id"], op.id);
         drop(d);
         std::fs::remove_dir_all(dir).unwrap();
     }
