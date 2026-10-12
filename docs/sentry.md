@@ -17,8 +17,9 @@ Sentry reporting is optional and off on first launch. Settings > Diagnostic repo
 - [x] Capture supported native crashes in a separate reporter, with a separate informed opt-in for memory-bearing minidumps. Reporter startup skips normal app setup. Synchronize safe operation tags and breadcrumbs.
 - [x] Generate and inject source-map Debug IDs before Tauri embeds assets. Remove maps from the shipped `dist`. Preserve release manifests and native debug information; gate release creation on private upload success.
 - [x] Flush one envelope with a three-second request timeout on normal exit and before updater relaunch. Remaining envelopes stay queued.
-- [ ] Owner: configure email alerts and quotas, and verify a real notification.
-- [ ] Owner: provide release upload credentials and verify symbolication on signed installed Apple Silicon and Intel builds.
+- [x] Configure production owner email alerts and quota warnings, and verify a real notification.
+- [x] Configure an organization release-upload token in the owner's server secret store.
+- [ ] Verify symbolication on signed installed Apple Silicon and Intel builds.
 
 ## What is recorded
 
@@ -35,7 +36,7 @@ The native crash reporter uses the most recently synchronized operation as conte
 Release upload needs these environment variables outside the app:
 
 ```sh
-export SENTRY_URL=https://de.sentry.io/
+# Cloud organization tokens embed the Sentry service URL.
 export SENTRY_ORG=maxxit
 export SENTRY_PROJECT=maxxit-desktop
 # Set SENTRY_AUTH_TOKEN through your secret manager or CI secrets.
