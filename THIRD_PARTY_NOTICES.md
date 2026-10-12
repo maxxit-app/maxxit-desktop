@@ -169,7 +169,7 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | mach2 | 0.4.3 | BSD-2-Clause OR MIT OR Apache-2.0 | https://github.com/JohnTitor/mach2 |
 | Cargo | markup5ever | 0.39.0 | MIT OR Apache-2.0 | https://github.com/servo/html5ever |
 | Cargo | memchr | 2.8.3 | Unlicense OR MIT | https://github.com/BurntSushi/memchr |
-| Cargo | memmap2 | 0.9.10 | MIT OR Apache-2.0 | https://github.com/RazrFalcon/memmap2-rs |
+| Cargo | memmap2 | 0.9.11 | MIT OR Apache-2.0 | https://github.com/RazrFalcon/memmap2-rs |
 | Cargo | mime | 0.3.17 | MIT OR Apache-2.0 | https://github.com/hyperium/mime |
 | Cargo | minidump-common | 0.26.1 | MIT | https://github.com/rust-minidump/rust-minidump |
 | Cargo | minidump-writer | 0.12.0 | MIT | https://github.com/rust-minidump/minidump-writer |
