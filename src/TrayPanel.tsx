@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
+import { invoke, captureDiagnostic } from "./observability";
 import { listen } from "@tauri-apps/api/event";
 import {
   ArrowUpRight,
@@ -194,10 +195,12 @@ export default function TrayPanel() {
     if (native)
       void listen("usage-updated", () => {
         if (!document.hidden) void refresh();
-      }).then((fn) => {
-        if (disposed) fn();
-        else unlisten = fn;
-      });
+      })
+        .then((fn) => {
+          if (disposed) fn();
+          else unlisten = fn;
+        })
+        .catch((error) => captureDiagnostic(error, "ui.listener.failed"));
     const visible = () => {
       if (!document.hidden) void refresh();
     };
@@ -233,7 +236,9 @@ export default function TrayPanel() {
           footer.getBoundingClientRect().height +
           24,
       );
-      void invoke("tray_resize", { height }).catch(() => {});
+      void invoke("tray_resize", { height }).catch((error) =>
+        captureDiagnostic(error, "ui.listener.failed"),
+      );
     };
     const observer = new ResizeObserver(resize);
     for (const element of [inner, header, footer]) observer.observe(element);

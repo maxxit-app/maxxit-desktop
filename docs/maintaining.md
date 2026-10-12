@@ -53,3 +53,11 @@ expire on January 7, 2027, and fail CI if either crate enters a Mac compilation 
 For a second maintainer, enable independent approval for owner PRs and release
 environment approvals. Keep bots unable to approve their own work. A publishing
 workflow requires maintainer authorization, protected refs, and scoped tokens.
+
+## Sentry releases
+
+See [desktop diagnostics](sentry.md) before preparing a release. Source maps and native
+symbols must match the signed app. Release creation requires Sentry upload credentials;
+local builds and checks do not. Preserve private artifacts until processing and
+symbolication are verified. [Verification record](sentry-verification.md) separates
+local checks from owner release gates.

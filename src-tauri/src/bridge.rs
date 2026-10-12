@@ -1,3 +1,4 @@
+use crate::observability::{failure, map_error, record};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -72,7 +73,11 @@ fn preview_at(data_dir: &Path, config: &Path) -> Result<Value, String> {
     )
 }
 pub fn install(data_dir: &Path) -> Result<(), String> {
+    record("bridge.install.started", json!({}));
     install_at(data_dir, &config_path()?)
+        .map_err(|e| map_error("bridge.install.failed", "write", e))?;
+    record("bridge.install.completed", json!({}));
+    Ok(())
 }
 fn install_at(data_dir: &Path, config: &Path) -> Result<(), String> {
     let preview = preview_at(data_dir, config)?;
@@ -103,6 +108,7 @@ fn install_at(data_dir: &Path, config: &Path) -> Result<(), String> {
 }
 pub fn uninstall(data_dir: &Path) -> Result<(), String> {
     uninstall_at(data_dir, &config_path()?)
+        .map_err(|e| map_error("bridge.restore.failed", "restore", e))
 }
 fn uninstall_at(data_dir: &Path, approved_config: &Path) -> Result<(), String> {
     let backup = read_json(&data_dir.join("claude-bridge.json"))?;
@@ -185,8 +191,16 @@ pub fn capture() -> Result<(), String> {
     if input.len() > 128000 {
         return Err("Payload exceeds 128 KB".into());
     }
-    if let Ok(raw) = serde_json::from_slice::<Value>(&input) {
-        let _ = sanitized_capture(&data_dir, &raw);
+    match serde_json::from_slice::<Value>(&input) {
+        Ok(raw) => {
+            if let Err(error) = sanitized_capture(&data_dir, &raw) {
+                map_error("bridge.capture.failed", "write", error);
+            }
+        }
+        Err(_) => failure(
+            "provider.parse.failed",
+            json!({"provider":"claude","stage":"parse"}),
+        ),
     }
     let backup = read_json(&data_dir.join("claude-bridge.json"))?;
     if let Some(command) = backup.pointer("/previous/command").and_then(Value::as_str) {
@@ -202,10 +216,23 @@ pub fn capture() -> Result<(), String> {
         }
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
         loop {
-            if child.try_wait().map_err(|e| e.to_string())?.is_some() {
+            if let Some(status) = child
+                .try_wait()
+                .map_err(|e| map_error("bridge.previous_command.failed", "read", e))?
+            {
+                if !status.success() {
+                    failure(
+                        "bridge.previous_command.failed",
+                        json!({"status":status.code()}),
+                    );
+                }
                 break;
             }
             if std::time::Instant::now() >= deadline {
+                failure(
+                    "bridge.previous_command.timeout",
+                    json!({"timeout_ms":2000}),
+                );
                 let _ = child.kill();
                 let _ = child.wait();
                 break;

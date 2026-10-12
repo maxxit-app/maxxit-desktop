@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./observability";
 import { ArrowUpRight, LoaderCircle, ShieldCheck } from "lucide-react";
 import type { AccountState } from "./types";
 import { UpdateNotice } from "./UpdateNotice";

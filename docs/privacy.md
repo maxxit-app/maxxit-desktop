@@ -12,7 +12,7 @@ Web sharing is optional and separate from hosted AI. Scope choices cover allowan
 | Maxxit device credential                      | A revocable device token in Mac Keychain under the stable app identifier.                                                                                                                                                                                                                        | Sign-out removes it locally immediately and queues revocation for delivery when connected.                                                         |
 | Optional usage upload                         | Provider, account label, observation time/source, and allowance windows go to Maxxit's HTTPS API.                                                                                                                                                                                                | Disable usage sharing to stop uploads. Hosted retention/deletion is covered by the website's privacy policy.                                       |
 | Optional project upload                       | Project IDs, imported Codex and Claude Code names, and descriptions go to the HTTPS API when project sharing is enabled. Provider root paths stay local.                                                                                                                                         | Disable sharing to stop uploads. Delete cloud records/account through the hosted account controls. Disabling sharing does not erase prior uploads. |
-| Update checks                                 | HTTPS requests to GitHub's release endpoint and signed update downloads.                                                                                                                                                                                                                         | GitHub receives normal network request metadata. Maxxit has no crash-reporting or analytics telemetry service enabled.                             |
+| Update checks                                 | HTTPS requests to GitHub's release endpoint and signed update downloads.                                                                                                                                                                                                                         | GitHub receives normal network request metadata. Optional crash reporting is controlled separately in Settings.                                    |
 
 Provider passwords, provider authentication files, raw sessions, and browser cookies are never collected for sync. Shared preferences exclude native paths. Workflow bundles can include text you supplied, including paths or pasted context, when detailed sharing is enabled. Codex account identifiers are
 hashed locally for grouping; hashes and derived labels are not anonymization guarantees.
@@ -31,3 +31,19 @@ Local prompts, suggestions, and task reports expire after 90 days. Explicit prom
 After Maxxit sign-in, project discovery runs automatically for Codex and Claude Code, independently of usage-monitoring connections. It reads Codex's saved desktop workspace registry and session metadata, and Claude Code's project indexes or the beginning of local session files when no index exists. It retains project names and hashes of source identities, never prompts or raw paths in shared project records. Discovery honors CODEX_HOME and CLAUDE_CONFIG_DIR, avoids symlinked files and directories, and bounds file reads and directory scans. It scans each source at most once per minute.
 
 The same folder used in both tools appears once. Codex multi-root workspaces retain their saved name and grouping. Names follow their source; descriptions and archive status remain editable in Maxxit. Users cannot create projects manually. Existing local records are preserved, and removed projects stay excluded. Missing source records do not delete local projects. Discovery covers locally saved workspaces and sessions; remote-only Claude web projects and sessions not stored on this Mac are unavailable. Web sharing still requires the existing project-sharing consent.
+
+## Optional desktop diagnostics
+
+Sentry receives diagnostics in the EU only after you enable reporting in Settings.
+Ordinary reports contain fixed error codes, release and Mac metadata, random operation
+IDs, sanitized stack positions and preceding safe events. They exclude project content,
+provider data, conversations, credentials and raw request or error strings.
+
+Unsent envelopes remain in the local diagnostics database for up to seven days, bounded
+to 20 MiB and 2,000 envelopes. Reporting changes erase pending envelopes and history.
+A separate native crash dump option requires explicit consent because dumps can contain
+private memory, including credentials. It is off by default and requires restart to enable.
+Turning it off stops dump uploads. Disabling reporting does not remove already uploaded
+data from Sentry. Use Sentry's deletion controls for that data.
+
+See [desktop diagnostics](sentry.md) for capture limits, release setup, retention and support export.
