@@ -177,7 +177,7 @@ impl Queue {
     pub fn next(&self, now: i64) -> rusqlite::Result<Option<Pending>> {
         self.with_db(|db| {
             let expired=db.execute("DELETE FROM outbox WHERE created < ?1", [now-MAX_AGE])?;
-            db.execute("UPDATE state SET dropped=dropped+?1 WHERE id=1", [expired])?;
+            db.execute("UPDATE state SET dropped=dropped+?1 WHERE id=1", [i64::try_from(expired).unwrap_or(i64::MAX)])?;
             db.query_row("SELECT id,body,category,attempts FROM outbox WHERE due<=?1 AND (SELECT enabled FROM state WHERE id=1)=1 AND NOT EXISTS(SELECT 1 FROM limits WHERE (category=outbox.category OR category='all' OR (outbox.category='attachment' AND category='error')) AND until>?1) ORDER BY priority DESC,created ASC LIMIT 1", [now], |r| Ok(Pending{id:r.get(0)?,body:r.get(1)?,category:r.get(2)?,attempts:r.get(3)?})).optional()
         })
     }
@@ -225,13 +225,13 @@ impl Queue {
     pub fn health(&self, configured: bool, now: i64) -> Health {
         self.with_db(|db| {
             let expired=db.execute("DELETE FROM outbox WHERE created < ?1", [now-MAX_AGE])?;
-            db.execute("UPDATE state SET dropped=dropped+?1 WHERE id=1", [expired])?;
-            let mut health=db.query_row("SELECT enabled,native_crashes,dropped,accepted_at,event_id,delivery FROM state WHERE id=1", [], |r| Ok(Health{enabled:r.get(0)?,native_crashes:r.get(1)?,dropped:r.get(2)?,last_accepted_at:r.get(3)?,last_event_id:r.get(4)?,delivery_state:r.get(5)?,configured,..Health::default()}))?;
-            let (count,oldest):(u64,Option<i64>)=db.query_row("SELECT COUNT(*),MIN(created) FROM outbox", [], |r| Ok((r.get(0)?,r.get(1)?)))?;
+            db.execute("UPDATE state SET dropped=dropped+?1 WHERE id=1", [i64::try_from(expired).unwrap_or(i64::MAX)])?;
+            let mut health=db.query_row("SELECT enabled,native_crashes,dropped,accepted_at,event_id,delivery FROM state WHERE id=1", [], |r| Ok(Health{enabled:r.get(0)?,native_crashes:r.get(1)?,dropped:r.get::<_,i64>(2)?.max(0) as u64,last_accepted_at:r.get(3)?,last_event_id:r.get(4)?,delivery_state:r.get(5)?,configured,..Health::default()}))?;
+            let (count,oldest):(i64,Option<i64>)=db.query_row("SELECT COUNT(*),MIN(created) FROM outbox", [], |r| Ok((r.get(0)?,r.get(1)?)))?;
             health.generation=db.query_row("SELECT epoch FROM state WHERE id=1", [], |r|r.get(0))?;
             health.dropped+=self.persistence_failures.load(Ordering::Relaxed);
             if self.persistence_failures.load(Ordering::Relaxed)>0 { health.delivery_state="persistence_failed".into(); }
-            health.pending=count;
+            health.pending=count.max(0) as u64;
             health.oldest_age_seconds=oldest.map(|t| (now-t).max(0) as u64).unwrap_or(0);
             let limited:bool=db.query_row("SELECT EXISTS(SELECT 1 FROM limits WHERE until>?1)", [now], |r|r.get(0))?;
             if limited && health.enabled { health.delivery_state="rate_limited".into(); }
