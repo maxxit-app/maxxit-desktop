@@ -15,7 +15,7 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | alloc-stdlib | 0.3.0 | BSD-3-Clause | https://github.com/dropbox/rust-alloc-no-stdlib |
 | Cargo | anyhow | 1.0.104 | MIT OR Apache-2.0 | https://github.com/dtolnay/anyhow |
 | Cargo | atomic-waker | 1.1.2 | Apache-2.0 OR MIT | https://github.com/smol-rs/atomic-waker |
-| Cargo | auto-launch | 0.5.0 | MIT | https://github.com/zzzgydi/auto-launch.git |
+| Cargo | auto-launch | 0.6.0 | MIT | https://github.com/zzzgydi/auto-launch.git |
 | Cargo | autocfg | 1.5.1 | Apache-2.0 OR MIT | https://github.com/cuviper/autocfg |
 | Cargo | base64 | 0.21.7 | MIT OR Apache-2.0 | https://github.com/marshallpierce/rust-base64 |
 | Cargo | base64 | 0.22.1 | MIT OR Apache-2.0 | https://github.com/marshallpierce/rust-base64 |
@@ -39,7 +39,6 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | cargo-platform | 0.1.9 | MIT OR Apache-2.0 | https://github.com/rust-lang/cargo |
 | Cargo | cc | 1.6.0 | MIT OR Apache-2.0 | https://github.com/rust-lang/cc-rs |
 | Cargo | cfb | 0.14.0 | MIT | https://github.com/mdsteele/rust-cfb |
-| Cargo | cfb | 0.7.3 | MIT | https://github.com/mdsteele/rust-cfb |
 | Cargo | cfg_aliases | 0.2.2 | MIT | https://github.com/katharostech/cfg_aliases |
 | Cargo | cfg-if | 1.0.5 | MIT OR Apache-2.0 | https://github.com/rust-lang/cfg-if |
 | Cargo | chacha20 | 0.10.2 | MIT OR Apache-2.0 | https://github.com/RustCrypto/stream-ciphers |
@@ -47,6 +46,7 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | chrono-tz | 0.10.4 | MIT OR Apache-2.0 | https://github.com/chronotope/chrono-tz |
 | Cargo | cookie | 0.18.2 | MIT OR Apache-2.0 | https://github.com/SergioBenitez/cookie-rs |
 | Cargo | core-foundation | 0.10.1 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
+| Cargo | core-foundation | 0.9.4 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
 | Cargo | core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
 | Cargo | core-graphics | 0.25.0 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
 | Cargo | core-graphics-types | 0.2.0 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
@@ -69,10 +69,8 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | derive_more | 2.1.1 | MIT | https://github.com/JelteF/derive_more |
 | Cargo | derive_more-impl | 2.1.1 | MIT | https://github.com/JelteF/derive_more |
 | Cargo | digest | 0.10.7 | MIT OR Apache-2.0 | https://github.com/RustCrypto/traits |
-| Cargo | dirs | 4.0.0 | MIT OR Apache-2.0 | https://github.com/soc/dirs-rs |
 | Cargo | dirs | 6.0.0 | MIT OR Apache-2.0 | https://github.com/soc/dirs-rs |
 | Cargo | dirs | 7.0.0 | MIT OR Apache-2.0 | https://codeberg.org/dirs/dirs-rs |
-| Cargo | dirs-sys | 0.3.7 | MIT OR Apache-2.0 | https://github.com/dirs-dev/dirs-sys-rs |
 | Cargo | dirs-sys | 0.5.0 | MIT OR Apache-2.0 | https://github.com/dirs-dev/dirs-sys-rs |
 | Cargo | dispatch2 | 0.3.1 | Zlib OR Apache-2.0 OR MIT | https://github.com/madsmtm/objc2 |
 | Cargo | displaydoc | 0.2.7 | MIT OR Apache-2.0 | https://github.com/yaahc/displaydoc |
@@ -95,7 +93,6 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | find-msvc-tools | 0.1.14 | MIT OR Apache-2.0 | https://github.com/rust-lang/cc-rs |
 | Cargo | flate2 | 1.1.10 | MIT OR Apache-2.0 | https://github.com/rust-lang/flate2-rs |
 | Cargo | fnv | 1.0.7 | Apache-2.0 / MIT | https://github.com/servo/rust-fnv |
-| Cargo | foldhash | 0.1.5 | Zlib | https://github.com/orlp/foldhash |
 | Cargo | foldhash | 0.2.0 | Zlib | https://github.com/orlp/foldhash |
 | Cargo | foreign-types | 0.5.0 | MIT/Apache-2.0 | https://github.com/sfackler/foreign-types |
 | Cargo | foreign-types-macros | 0.2.4 | MIT/Apache-2.0 | https://github.com/sfackler/foreign-types |
@@ -114,9 +111,8 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | getrandom | 0.4.3 | MIT OR Apache-2.0 | https://github.com/rust-random/getrandom |
 | Cargo | glob | 0.3.4 | MIT OR Apache-2.0 | https://github.com/rust-lang/glob |
 | Cargo | hashbrown | 0.12.3 | MIT OR Apache-2.0 | https://github.com/rust-lang/hashbrown |
-| Cargo | hashbrown | 0.15.5 | MIT OR Apache-2.0 | https://github.com/rust-lang/hashbrown |
 | Cargo | hashbrown | 0.17.1 | MIT OR Apache-2.0 | https://github.com/rust-lang/hashbrown |
-| Cargo | hashlink | 0.10.0 | MIT OR Apache-2.0 | https://github.com/kyren/hashlink |
+| Cargo | hashlink | 0.12.2 | MIT OR Apache-2.0 | https://github.com/djc/hashlink |
 | Cargo | heck | 0.5.0 | MIT OR Apache-2.0 | https://github.com/withoutboats/heck |
 | Cargo | hex | 0.4.3 | MIT OR Apache-2.0 | https://github.com/KokaKiwi/rust-hex |
 | Cargo | html5ever | 0.39.0 | MIT OR Apache-2.0 | https://github.com/servo/html5ever |
@@ -142,7 +138,6 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | image | 0.25.10 | MIT OR Apache-2.0 | https://github.com/image-rs/image |
 | Cargo | indexmap | 1.9.3 | Apache-2.0 OR MIT | https://github.com/bluss/indexmap |
 | Cargo | indexmap | 2.14.2 | Apache-2.0 OR MIT | https://github.com/indexmap-rs/indexmap |
-| Cargo | infer | 0.19.0 | MIT | https://github.com/bojand/infer |
 | Cargo | infer | 0.22.0 | MIT | https://github.com/bojand/infer |
 | Cargo | ipnet | 2.12.2 | MIT OR Apache-2.0 | https://github.com/krisprice/ipnet |
 | Cargo | itoa | 1.0.18 | MIT OR Apache-2.0 | https://github.com/dtolnay/itoa |
@@ -153,7 +148,7 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | keyboard-types | 0.8.3 | MIT OR Apache-2.0 | https://github.com/rust-windowing/keyboard-types |
 | Cargo | keyring | 3.6.3 | MIT OR Apache-2.0 | https://github.com/hwchen/keyring-rs.git |
 | Cargo | libc | 0.2.190 | MIT OR Apache-2.0 | https://github.com/rust-lang/libc |
-| Cargo | libsqlite3-sys | 0.35.0 | MIT | https://github.com/rusqlite/rusqlite |
+| Cargo | libsqlite3-sys | 0.38.2 | MIT | https://github.com/rusqlite/rusqlite |
 | Cargo | litemap | 0.8.3 | Unicode-3.0 | https://github.com/unicode-org/icu4x |
 | Cargo | lock_api | 0.4.14 | MIT OR Apache-2.0 | https://github.com/Amanieu/parking_lot |
 | Cargo | log | 0.4.34 | MIT OR Apache-2.0 | https://github.com/rust-lang/log |
@@ -163,12 +158,14 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | memchr | 2.8.3 | Unlicense OR MIT | https://github.com/BurntSushi/memchr |
 | Cargo | mime | 0.3.17 | MIT OR Apache-2.0 | https://github.com/hyperium/mime |
 | Cargo | minisign-verify | 0.2.5 | MIT | https://github.com/jedisct1/rust-minisign-verify |
+| Cargo | minisign-verify | 0.3.0 | MIT | https://github.com/jedisct1/rust-minisign-verify |
 | Cargo | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 | https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide |
 | Cargo | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 | https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide |
 | Cargo | mio | 1.2.4 | MIT | https://github.com/tokio-rs/mio |
 | Cargo | moxcms | 0.8.1 | BSD-3-Clause OR Apache-2.0 | https://github.com/awxkee/moxcms.git |
 | Cargo | muda | 0.20.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/muda |
 | Cargo | new_debug_unreachable | 1.0.6 | MIT | https://github.com/mbrubeck/rust-debug-unreachable |
+| Cargo | nix | 0.31.3 | MIT | https://github.com/nix-rust/nix |
 | Cargo | notify-rust | 4.18.2 | MIT OR Apache-2.0 | https://github.com/hoodie/notify-rust |
 | Cargo | num-conv | 0.2.2 | MIT OR Apache-2.0 | https://github.com/jhpratt/num-conv |
 | Cargo | num-traits | 0.2.19 | MIT OR Apache-2.0 | https://github.com/rust-num/num-traits |
@@ -182,12 +179,15 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | objc2-io-surface | 0.3.2 | Zlib OR Apache-2.0 OR MIT | https://github.com/madsmtm/objc2 |
 | Cargo | objc2-osa-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT | https://github.com/madsmtm/objc2 |
 | Cargo | objc2-quartz-core | 0.3.2 | Zlib OR Apache-2.0 OR MIT | https://github.com/madsmtm/objc2 |
+| Cargo | objc2-security | 0.3.2 | Zlib OR Apache-2.0 OR MIT | https://github.com/madsmtm/objc2 |
+| Cargo | objc2-service-management | 0.3.2 | Zlib OR Apache-2.0 OR MIT | https://github.com/madsmtm/objc2 |
 | Cargo | objc2-web-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT | https://github.com/madsmtm/objc2 |
 | Cargo | once_cell | 1.21.4 | MIT OR Apache-2.0 | https://github.com/matklad/once_cell |
 | Cargo | open | 5.4.4 | MIT | https://github.com/Byron/open-rs |
 | Cargo | openssl-src | 300.6.1+3.6.3 | MIT/Apache-2.0 | https://github.com/alexcrichton/openssl-src-rs |
 | Cargo | openssl-sys | 0.9.117 | MIT | https://github.com/rust-openssl/rust-openssl |
 | Cargo | option-ext | 0.2.0 | MPL-2.0 | https://github.com/soc/option-ext.git |
+| Cargo | os_info | 3.15.0 | MIT | https://github.com/stanislav-tkach/os_info |
 | Cargo | osakit | 0.3.1 | MIT OR Apache-2.0 | https://github.com/mdevils/rust-osakit |
 | Cargo | parking_lot | 0.12.5 | MIT OR Apache-2.0 | https://github.com/Amanieu/parking_lot |
 | Cargo | parking_lot_core | 0.9.12 | MIT OR Apache-2.0 | https://github.com/Amanieu/parking_lot |
@@ -231,7 +231,7 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | reqwest | 0.13.5 | MIT OR Apache-2.0 | https://github.com/seanmonstar/reqwest |
 | Cargo | rfd | 0.16.0 | MIT | https://github.com/PolyMeilex/rfd |
 | Cargo | ring | 0.17.14 | Apache-2.0 AND ISC | https://github.com/briansmith/ring |
-| Cargo | rusqlite | 0.37.0 | MIT | https://github.com/rusqlite/rusqlite |
+| Cargo | rusqlite | 0.40.2 | MIT | https://github.com/rusqlite/rusqlite |
 | Cargo | rustc_version | 0.4.1 | MIT OR Apache-2.0 | https://github.com/djc/rustc-version-rs |
 | Cargo | rustc-hash | 2.1.3 | Apache-2.0 OR MIT | https://github.com/rust-lang/rustc-hash |
 | Cargo | rustix | 1.1.5 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | https://github.com/bytecodealliance/rustix |
@@ -271,6 +271,7 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | siphasher | 1.0.4 | MIT OR Apache-2.0 | https://github.com/jedisct1/rust-siphash |
 | Cargo | slab | 0.4.12 | MIT | https://github.com/tokio-rs/slab |
 | Cargo | smallvec | 1.16.2 | MIT OR Apache-2.0 | https://github.com/servo/rust-smallvec |
+| Cargo | smappservice-rs | 0.1.3 | MIT | https://github.com/gethopp/smappservice-rs |
 | Cargo | socket2 | 0.6.5 | MIT OR Apache-2.0 | https://github.com/rust-lang/socket2 |
 | Cargo | stable_deref_trait | 1.2.1 | MIT OR Apache-2.0 | https://github.com/storyyeller/stable_deref_trait |
 | Cargo | string_cache | 0.9.0 | MIT OR Apache-2.0 | https://github.com/servo/string-cache |
@@ -282,6 +283,8 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | syn | 3.0.6 | MIT OR Apache-2.0 | https://github.com/dtolnay/syn |
 | Cargo | sync_wrapper | 1.0.2 | Apache-2.0 | https://github.com/Actyx/sync_wrapper |
 | Cargo | synstructure | 0.14.0 | MIT | https://github.com/mystor/synstructure |
+| Cargo | system-configuration | 0.7.0 | MIT OR Apache-2.0 | https://github.com/mullvad/system-configuration-rs |
+| Cargo | system-configuration-sys | 0.6.0 | MIT OR Apache-2.0 | https://github.com/mullvad/system-configuration-rs |
 | Cargo | tao | 0.37.1 | Apache-2.0 | https://github.com/tauri-apps/tao |
 | Cargo | tar | 0.4.46 | MIT OR Apache-2.0 | https://github.com/composefs/tar-rs |
 | Cargo | tauri | 2.12.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
@@ -289,23 +292,21 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | tauri-codegen | 2.7.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 | Cargo | tauri-macros | 2.7.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 | Cargo | tauri-plugin | 2.7.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
-| Cargo | tauri-plugin-autostart | 2.5.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
-| Cargo | tauri-plugin-dialog | 2.6.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
+| Cargo | tauri-plugin-autostart | 2.7.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
+| Cargo | tauri-plugin-dialog | 2.8.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | Cargo | tauri-plugin-fs | 2.6.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | Cargo | tauri-plugin-notification | 2.5.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | Cargo | tauri-plugin-opener | 2.7.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | Cargo | tauri-plugin-process | 2.4.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | Cargo | tauri-plugin-single-instance | 2.5.2 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
-| Cargo | tauri-plugin-updater | 2.10.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
+| Cargo | tauri-plugin-updater | 2.13.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | Cargo | tauri-runtime | 2.12.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 | Cargo | tauri-runtime-wry | 2.12.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 | Cargo | tauri-utils | 2.10.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 | Cargo | tauri-winres | 0.3.6 | MIT | https://github.com/tauri-apps/winres |
 | Cargo | tempfile | 3.27.0 | MIT OR Apache-2.0 | https://github.com/Stebalien/tempfile |
 | Cargo | tendril | 0.5.1 | MIT OR Apache-2.0 | https://github.com/servo/html5ever |
-| Cargo | thiserror | 1.0.69 | MIT OR Apache-2.0 | https://github.com/dtolnay/thiserror |
 | Cargo | thiserror | 2.0.21 | MIT OR Apache-2.0 | https://github.com/dtolnay/thiserror |
-| Cargo | thiserror-impl | 1.0.69 | MIT OR Apache-2.0 | https://github.com/dtolnay/thiserror |
 | Cargo | thiserror-impl | 2.0.21 | MIT OR Apache-2.0 | https://github.com/dtolnay/thiserror |
 | Cargo | time | 0.3.55 | MIT OR Apache-2.0 | https://github.com/time-rs/time |
 | Cargo | time-core | 0.1.9 | MIT OR Apache-2.0 | https://github.com/time-rs/time |
@@ -361,10 +362,10 @@ Maxxit's original code uses the [MIT license](LICENSE).
 | Cargo | zlib-rs | 0.6.8 | Zlib | https://github.com/trifectatechfoundation/zlib-rs |
 | Cargo | zmij | 1.0.23 | MIT | https://github.com/dtolnay/zmij |
 | npm | @tauri-apps/api | 2.12.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri#readme |
-| npm | @tauri-apps/plugin-autostart | 2.5.1 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace#readme |
-| npm | @tauri-apps/plugin-dialog | 2.6.0 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace#readme |
+| npm | @tauri-apps/plugin-autostart | 2.7.0 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace#readme |
+| npm | @tauri-apps/plugin-dialog | 2.8.1 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace#readme |
 | npm | @tauri-apps/plugin-process | 2.4.0 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace#readme |
-| npm | @tauri-apps/plugin-updater | 2.10.1 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace#readme |
+| npm | @tauri-apps/plugin-updater | 2.13.1 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace#readme |
 | npm | @types/react | 19.3.0 | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react |
 | npm | csstype | 3.2.3 | MIT | https://github.com/frenic/csstype#readme |
 | npm | lucide-react | 1.52.0 | ISC | https://lucide.dev |

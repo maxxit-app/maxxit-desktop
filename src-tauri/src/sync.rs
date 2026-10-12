@@ -99,7 +99,7 @@ impl Store {
             .map_err(|e| e.to_string())?;
         let rows = query
             .query_map([], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, usize>(1)?))
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
             })
             .map_err(|e| e.to_string())?;
         let mut pending = 0;
@@ -119,6 +119,38 @@ impl Store {
 mod tests {
     use super::*;
     use std::path::Path;
+
+    #[test]
+    fn pending_counts_follow_sync_scope_and_acknowledgements() {
+        let store = Store::open(Path::new(":memory:")).unwrap();
+        assert_eq!(store.sync_status().unwrap()["pending"], 0);
+
+        let settings = Settings {
+            project_sync: true,
+            ..Default::default()
+        };
+        store.save_settings(&settings).unwrap();
+        for id in ["first", "second"] {
+            store
+                .save_project(&json!({"id":id,"name":"Synthetic project"}))
+                .unwrap();
+        }
+        assert_eq!(store.sync_status().unwrap()["pending"], 2);
+
+        store.save_settings(&Settings::default()).unwrap();
+        assert_eq!(store.sync_status().unwrap()["pending"], 0);
+        store.save_settings(&settings).unwrap();
+        assert_eq!(store.sync_status().unwrap()["pending"], 2);
+
+        let batch = store.sync_batch(&settings).unwrap();
+        store
+            .acknowledge_sync(&batch, &json!({"schemaVersion":1,"acknowledgements":batch}))
+            .unwrap();
+        assert_eq!(store.sync_status().unwrap()["pending"], 0);
+        store.remove_project("first").unwrap();
+        assert_eq!(store.sync_status().unwrap()["pending"], 1);
+    }
+
     #[test]
     fn atomic_mutations_survive_missing_ack_and_tombstones_survive_replay() {
         let store = Store::open(Path::new(":memory:")).unwrap();
