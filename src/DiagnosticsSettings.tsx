@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { invoke as nativeInvoke, isTauri } from "@tauri-apps/api/core";
 import {
+  Sentry,
+  captureDiagnostic,
+  flushDiagnostics,
   diagnosticContext,
   recordDiagnostic,
   setDiagnosticHealth,
@@ -68,6 +71,30 @@ export default function DiagnosticsSettings() {
       );
     } catch {
       setMessage("The test report could not be queued.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function testBrowser() {
+    setBusy(true);
+    try {
+      const context = diagnosticContext("diagnostics_test");
+      recordDiagnostic("diagnostics.test", context, { stage: "start" });
+      const eventId = captureDiagnostic(
+        new Error("Diagnostic test"),
+        "diagnostics.test",
+        context,
+      );
+      await Sentry.flush(3000);
+      await flushDiagnostics();
+      update(await nativeInvoke<DiagnosticHealth>("diagnostics_health"));
+      setMessage(
+        eventId
+          ? `JavaScript test report ${eventId}. Check this ID in Sentry to confirm it appears.`
+          : "The test could not be queued.",
+      );
+    } catch {
+      setMessage("The JavaScript test report could not be queued.");
     } finally {
       setBusy(false);
     }
@@ -153,7 +180,14 @@ export default function DiagnosticsSettings() {
             disabled={busy}
             onClick={() => void test()}
           >
-            Send a test report
+            Send a native test report
+          </button>
+          <button
+            className="button secondary"
+            disabled={busy}
+            onClick={() => void testBrowser()}
+          >
+            Send a JavaScript test report
           </button>
         </>
       )}

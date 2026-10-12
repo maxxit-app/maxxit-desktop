@@ -379,9 +379,7 @@ impl Operation {
             return None;
         }
         let signature = format!("{}:{}", self.origin, self.name);
-        let stack = sentry::integrations::backtrace::current_stacktrace()
-            .and_then(|s| serde_json::to_value(s).ok());
-        let event = json!({"event_id":id(),"platform":"native","level":"error","exception":{"values":[{"type":"DesktopError","stacktrace":stack}]},"debug_meta":{"images":sentry::integrations::debug_images::debug_images()}});
+        let event = native_event();
         let result = d.capture(event, name, self);
         if let Some(report) = &result {
             if let Ok(mut incidents) = d.incidents.lock() {
@@ -391,6 +389,14 @@ impl Operation {
         *captured = result.clone();
         result
     }
+}
+fn native_event() -> Value {
+    let stack = sentry::integrations::backtrace::current_stacktrace()
+        .and_then(|s| serde_json::to_value(s).ok());
+    json!({"event_id":id(),"platform":"native","level":"error","exception":{"values":[{"type":"DesktopError","stacktrace":stack}]},"debug_meta":{"images":sentry::integrations::debug_images::debug_images()}})
+}
+fn safe_stacktrace(frames: Vec<Value>) -> Option<Value> {
+    (!frames.is_empty()).then(|| json!({"frames":frames}))
 }
 fn current() -> Operation {
     ASYNC_OPERATION
@@ -830,14 +836,14 @@ impl Diagnostics {
         exceptions.reverse();
         let exceptions: Vec<Value> = if exceptions.is_empty() {
             vec![
-                json!({"type":"DesktopError","value":code(name),"stacktrace":{"frames":frames},"mechanism":{"type":"maxxit","handled":!name.starts_with("app.")}}),
+                json!({"type":"DesktopError","value":code(name),"stacktrace":safe_stacktrace(frames),"mechanism":{"type":"maxxit","handled":!name.starts_with("app.")}}),
             ]
         } else {
             exceptions.iter().map(|exception| {
                 let ty=match exception["type"].as_str().unwrap_or("") {"TypeError"=>"TypeError","SyntaxError"=>"SyntaxError","RangeError"=>"RangeError","ReferenceError"=>"ReferenceError","Panic"|"panic"=>"Panic",_=>"DesktopError"};
                 let frames=exception.pointer("/stacktrace/frames").and_then(Value::as_array).map(|frames|frames.iter().rev().take(80).map(safe_frame).collect::<Vec<_>>()).unwrap_or_default();
                 let frames=frames.into_iter().rev().collect::<Vec<_>>();
-                json!({"type":ty,"value":code(name),"stacktrace":{"frames":frames},"mechanism":{"type":"maxxit","handled":!name.starts_with("app.")}})
+                json!({"type":ty,"value":code(name),"stacktrace":safe_stacktrace(frames),"mechanism":{"type":"maxxit","handled":!name.starts_with("app.")}})
             }).collect()
         };
         json!({"event_id":event_id,"timestamp":raw["timestamp"].as_f64().unwrap_or(now() as f64),"platform":if raw["platform"]=="javascript"{"javascript"}else{"native"},"level":if name=="app.crash" || name=="app.panic" || name=="app.start.failed"{"fatal"}else{"error"},"release":self.release,"environment":self.environment,"sdk":{"name":"maxxit.desktop","version":"1","packages":[{"name":"sentry-rust","version":"0.49.3"},{"name":"@sentry/react","version":"10.75.0"}]},"message":code(name),"fingerprint":["{{ default }}",event_name(name)],"exception":{"values":exceptions},"debug_meta":{"images":images},"tags":{"event_name":event_name(name),"diagnostics_generation":operation.epoch.to_string(),"error_code":code(name),"operation_id":operation.id,"command":operation.name,"error_id":event_id,"origin":operation.origin,"source_commit":env!("MAXXIT_SOURCE_COMMIT")},"contexts":{"operation":{"name":operation.name,"operation_id":operation.id,"elapsed_ms":operation.start.elapsed().as_millis() as u64,"stack_origin":"capture_boundary"},"os":{"name":"macOS","version":self.os_version},"device":{"arch":std::env::consts::ARCH}},"extra":{"schema_version":1,"boot_id":raw.pointer("/tags/boot_id").and_then(Value::as_str).filter(|v|valid_id(v)).unwrap_or(&self.boot_id),"app_uptime_ms":self.started.elapsed().as_millis() as u64,"omitted_event_count":omitted_count,"diagnostic_history":history},"breadcrumbs":{"values":history.iter().map(|r|json!({"timestamp":r.timestamp,"category":r.name,"message":r.name,"level":"info","data":r.attributes})).collect::<Vec<_>>()}})
@@ -1243,7 +1249,7 @@ pub async fn diagnostics_test() -> Result<Value, String> {
     }
     let operation = Operation::new("diagnostics_test", "main", None);
     operation.record("diagnostics.test", json!({"stage":"start"}));
-    let event_id = d.capture(json!({}), "diagnostics.test", &operation);
+    let event_id = d.capture(native_event(), "diagnostics.test", &operation);
     d.deliver(4).await;
     Ok(
         json!({"eventId":event_id,"health":d.health(),"status":"Check the event ID in Sentry to confirm processing."}),
@@ -1295,6 +1301,29 @@ mod tests {
             assert_eq!(error.message, message);
         }
         assert!(!expected("Storage unavailable"));
+    }
+    #[test]
+    fn native_test_reports_have_real_stacks_and_empty_stacks_are_omitted() {
+        let (dir, d, op) = fixture();
+        let event = d.safe_event(&native_event(), "diagnostics.test", &op);
+        assert!(!event
+            .pointer("/exception/values/0/stacktrace/frames")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .is_empty());
+        assert!(!event
+            .pointer("/debug_meta/images")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .is_empty());
+        let empty = d.safe_event(&json!({}), "diagnostics.test", &op);
+        assert!(empty
+            .pointer("/exception/values/0/stacktrace/frames")
+            .is_none());
+        drop(d);
+        std::fs::remove_dir_all(dir).unwrap();
     }
     #[test]
     fn complete_event_scrubbing_preserves_debug_ids_and_correlated_history() {
@@ -1386,7 +1415,7 @@ mod tests {
             env!("CARGO_PKG_VERSION"),
             env!("MAXXIT_SOURCE_COMMIT")
         );
-        let event_id = d.capture(json!({}), "diagnostics.test", &op).unwrap();
+        let event_id = d.capture(native_event(), "diagnostics.test", &op).unwrap();
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(d.deliver(2));

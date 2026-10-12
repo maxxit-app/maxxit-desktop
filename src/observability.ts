@@ -191,10 +191,10 @@ export function captureDiagnostic(
   )
     return;
   if (!health?.enabled || context.generation !== health.generation) return;
-  Sentry.withScope((scope) => {
+  return Sentry.withScope((scope) => {
     scope.setExtra("maxxit_operation", context);
     scope.setTag("maxxit_event", name);
-    Sentry.captureException(error);
+    return Sentry.captureException(error);
   });
 }
 export async function invoke<T>(
