@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.16 October 13 2026
+
+- Detect reported deadline changes after an overnight gap while the previous deadline is still in the future.
+- Confirm smaller allowance increases when fresh readings also show a changed deadline. Preserve normal rollover, account isolation, freshness checks and duplicate suppression.
+- Keep prior baselines when an upload is stale or incomplete.
+- Support macOS 14 or later on Apple silicon and Intel. Physical Intel and macOS 14 runtime acceptance remain unverified.
+
 ## 0.1.15 October 12 2026
 
 - Add optional Sentry diagnostic reporting for React, tray, Rust commands, background operations and supported native crashes. Reporting starts off and native memory dumps need separate consent.

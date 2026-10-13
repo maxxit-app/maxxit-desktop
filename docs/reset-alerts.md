@@ -1,6 +1,6 @@
 # Reset alerts
 
-Maxxit records changes in allowance and reported reset times. A 20-point percentage drop needs a second genuinely newer reading before Maxxit calls it an unexpected increase. It does not establish the cause or predict an unannounced reset. A normal reset crossing, stale capture, different account, incompatible source or duration change establishes a baseline instead.
+Maxxit records changes in allowance and reported reset times. A 20-point percentage drop needs a second genuinely newer reading before Maxxit calls it an unexpected increase. A reported deadline change beyond two minutes also supports a smaller drop of at least one point. Confirmation requires another fresh reading with a consistent deadline. It does not establish the cause or predict an unannounced reset. An overnight gap preserves a comparable baseline until its old deadline passes, for at most one window duration and seven days. A normal reset crossing, different account, incompatible source or duration change establishes a baseline instead. Stale or incomplete captures cannot erase the prior baseline.
 
 Open Settings to choose providers and event types, desktop notices, lead times, timezone, quiet hours and a daily limit. Email requires Pro, usage sharing and an explicit email choice. Shared email and event choices follow the verified account. Local changes remain pending until the service accepts them. Email does not depend on macOS notification permission or AI generation consent.
 
