@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 const MAX_AGE: i64 = 7200;
+const MAX_COMPARISON_AGE: i64 = 7 * 86400;
 const RESET_TOLERANCE: i64 = 120;
 const DROP: f64 = 20.0;
 #[derive(Clone, Serialize, Deserialize)]
@@ -20,6 +21,8 @@ struct Reading {
 struct Watch {
     baseline: Reading,
     candidate_at: Option<String>,
+    #[serde(default)]
+    candidate_window: Option<UsageWindow>,
 }
 fn timestamp(value: &str) -> Option<i64> {
     DateTime::parse_from_rfc3339(value)
@@ -48,6 +51,7 @@ fn classify(
     let fresh = Watch {
         baseline: next.clone(),
         candidate_at: None,
+        candidate_window: None,
     };
     let Some(old) = watch else {
         return (fresh, vec![]);
@@ -72,30 +76,49 @@ fn classify(
     let old_used = before.used_percent.unwrap_or(f64::NAN);
     if time > now + 60
         || now - time > MAX_AGE
-        || time - previous > MAX_AGE
         || w.availability != "available"
-        || before.availability != "available"
         || !(0.0..=100.0).contains(&used)
+        || reset <= time
+    {
+        return (old, vec![]);
+    }
+    let comparison_age = before
+        .duration_minutes
+        .filter(|m| *m > 0)
+        .map(|m| m.saturating_mul(60))
+        .unwrap_or(MAX_AGE)
+        .min(MAX_COMPARISON_AGE);
+    if previous == 0
+        || time - previous > comparison_age
+        || before.availability != "available"
         || !(0.0..=100.0).contains(&old_used)
         || w.duration_minutes != before.duration_minutes
-        || reset <= time
         || old_reset <= time + RESET_TOLERANCE
     {
         return (fresh, vec![]);
     }
     let mut changes = vec![];
-    if (reset - old_reset).abs() > RESET_TOLERANCE && old.candidate_at.is_none() {
+    let changed = (reset - old_reset).abs() > RESET_TOLERANCE;
+    if changed && old.candidate_at.is_none() {
         changes.push((
             "changed".into(),
             old.baseline.clone(),
             next.observed_at.clone(),
         ));
     }
-    if old_used - used >= DROP {
-        if let Some(candidate) = old
-            .candidate_at
-            .filter(|t| timestamp(t).is_some_and(|t| time > t))
-        {
+    let drop = old_used - used;
+    if drop >= DROP || (changed && drop >= 1.0) {
+        if let Some(candidate) = old.candidate_at.filter(|t| {
+            timestamp(t).is_some_and(|t| time > t && time - t <= MAX_AGE)
+                && old
+                    .candidate_window
+                    .as_ref()
+                    .and_then(|w| w.resets_at.as_deref())
+                    .and_then(timestamp)
+                    .is_some_and(|candidate_reset| {
+                        (reset - candidate_reset).abs() <= RESET_TOLERANCE
+                    })
+        }) {
             changes.push(("increased".into(), old.baseline, candidate));
             return (fresh, changes);
         }
@@ -103,6 +126,7 @@ fn classify(
             Watch {
                 baseline: old.baseline,
                 candidate_at: Some(next.observed_at),
+                candidate_window: Some(next.window),
             },
             changes,
         );
@@ -454,6 +478,49 @@ mod tests {
         let (first, _) = classify(None, reading(1000, 90.0, 10000), 1000);
         let (_, changes) = classify(Some(first), reading(9000, 0.0, 10000), 9000);
         assert!(changes.is_empty());
+    }
+    #[test]
+    fn overnight_deadline_change_confirms_a_small_refill() {
+        let start = 1791846106;
+        let time = start + 33312;
+        let (first, _) = classify(None, reading(start, 16.0, start + 6 * 86400), start);
+        let (candidate, changes) =
+            classify(Some(first), reading(time, 0.0, time + 7 * 86400), time);
+        assert_eq!(changes[0].0, "changed");
+        let (repeat, changes) =
+            classify(Some(candidate), reading(time, 0.0, time + 7 * 86400), time);
+        assert!(changes.is_empty());
+        let (confirmed, changes) = classify(
+            Some(repeat),
+            reading(time + 6, 0.0, time + 7 * 86400 + 30),
+            time + 6,
+        );
+        assert_eq!(changes[0].0, "increased");
+        assert!(classify(
+            Some(confirmed),
+            reading(time + 60, 0.0, time + 7 * 86400 + 30),
+            time + 60
+        )
+        .1
+        .is_empty());
+    }
+    #[test]
+    fn stale_uploads_do_not_erase_baselines_and_small_drops_need_deadline_evidence() {
+        let (first, _) = classify(None, reading(1000, 16.0, 100000), 1000);
+        let (kept, changes) = classify(Some(first), reading(2000, 0.0, 200000), 12000);
+        assert!(changes.is_empty());
+        assert_eq!(
+            kept.baseline.observed_at,
+            reading(1000, 16.0, 100000).observed_at
+        );
+        assert!(classify(Some(kept), reading(13000, 0.0, 100000), 13000)
+            .1
+            .is_empty());
+        let (first, _) = classify(None, reading(1000, 16.0, 100000), 1000);
+        let (candidate, _) = classify(Some(first), reading(2000, 0.0, 200000), 2000);
+        assert!(classify(Some(candidate), reading(2100, 0.0, 300000), 2100)
+            .1
+            .is_empty());
     }
     #[test]
     fn durable_ledger_preserves_deduplication_and_native_budget_after_restart() {
