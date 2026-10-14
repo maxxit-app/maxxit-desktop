@@ -30,7 +30,7 @@
     "sentry:upload": "node scripts/sentry-artifacts.mjs upload"
   },
   "dependencies": {
-    "@sentry/react": "10.75.0",
+    "@sentry/react": "11.6.0",
     "@tauri-apps/api": "2.12.1",
     "@tauri-apps/plugin-autostart": "2.7.0",
     "@tauri-apps/plugin-dialog": "2.8.1",
