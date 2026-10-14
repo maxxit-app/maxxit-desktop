@@ -47,3 +47,20 @@ Turning it off stops dump uploads. Disabling reporting does not remove already u
 data from Sentry. Use Sentry's deletion controls for that data.
 
 See [desktop diagnostics](sentry.md) for capture limits, release setup, retention and support export.
+
+## Optional product analytics
+
+Google Analytics receives screen views, fixed feature actions and outcomes, app version,
+window type, and time spent in the app only after you allow Product analytics.
+This choice is separate from Sentry reporting, account sharing, and hosted AI consent.
+A random analytics identifier is stored in the encrypted session database. No Maxxit
+account identifier, email, provider data, project text, path, prompt, or credential is
+included in Google's payload. The Maxxit service authenticates and validates each event,
+and keeps the Google API secret on the server. Advertising use is disabled.
+
+Change the choice in Settings. Turning analytics off removes the identifier and discards
+queued events. An in-flight request may finish before withdrawal completes. Events are
+held in memory with a limit of 20; failures are not retried or stored offline. This means
+analytics does not record every offline action. Google may process data outside the EU.
+Already delivered data follows the property's retention and deletion controls.
+See [Google's data processing information](https://policies.google.com/technologies/partner-sites).

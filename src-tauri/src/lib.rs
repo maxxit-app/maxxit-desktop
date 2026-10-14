@@ -1,3 +1,7 @@
+mod product_analytics;
+use product_analytics::{
+    product_analytics_consent, product_analytics_health, product_analytics_record,
+};
 mod account;
 pub mod bridge;
 mod diagnostics_queue;
@@ -1409,6 +1413,9 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            product_analytics_consent,
+            product_analytics_health,
+            product_analytics_record,
             diagnostics_record,
             diagnostics_health,
             diagnostics_consent,

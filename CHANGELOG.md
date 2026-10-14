@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.17 October 14 2026
+
+- Add optional Google Analytics product measurement for desktop screens, feature actions, update outcomes and engagement. Analytics starts off until you allow it.
+- Keep project content, paths, prompts, emails, account IDs and credentials out of the analytics payload. Store Google credentials only on the Maxxit service.
+- Add a consent choice and delivery status in Settings. Turning analytics off discards queued events and removes its random identifier.
+- Support macOS 14 or later on Apple silicon and Intel. Physical Intel and macOS 14 runtime acceptance remain unverified.
+
 ## 0.1.16 October 13 2026
 
 - Detect reported deadline changes after an overnight gap while the previous deadline is still in the future.

@@ -1,3 +1,4 @@
+import { trackProductEvent } from "./product-analytics";
 import {
   diagnosticContext,
   recordDiagnostic,
@@ -57,6 +58,7 @@ export class UpdateController {
     recordDiagnostic("update.check.started", context, { stage: "check" });
     try {
       const update = await this.checkUpdate();
+      trackProductEvent("desktop_action", "update_check");
       await this.pending
         ?.close()
         .catch((error) =>
@@ -73,6 +75,7 @@ export class UpdateController {
           : { status: "current" },
       );
     } catch (error) {
+      trackProductEvent("action_failed", "update_check");
       captureDiagnostic(error, "update.check.failed", context);
       this.set({
         ...this.state,
@@ -128,6 +131,7 @@ export class UpdateController {
         { timeout: 120000 },
       );
       this.set({ ...this.state, status: "ready", progress: 100 });
+      trackProductEvent("desktop_action", "update_install");
       recordDiagnostic("update.install.completed", context, {
         stage: "install",
         target_version: this.pending.version,
@@ -140,6 +144,7 @@ export class UpdateController {
         );
       this.pending = null;
     } catch (error) {
+      trackProductEvent("action_failed", "update_install");
       captureDiagnostic(
         error,
         String(error).toLowerCase().includes("signature")
