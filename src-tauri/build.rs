@@ -60,6 +60,9 @@ fn main() {
     }
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "product_analytics_consent",
+            "product_analytics_health",
+            "product_analytics_record",
             "diagnostics_record",
             "diagnostics_health",
             "diagnostics_consent",

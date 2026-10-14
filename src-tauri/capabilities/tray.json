@@ -11,6 +11,8 @@
     "allow-tray-action",
     "allow-tray-resize",
     "allow-diagnostics-record",
-    "allow-diagnostics-health"
+    "allow-diagnostics-health",
+    "allow-product-analytics-health",
+    "allow-product-analytics-record"
   ]
 }

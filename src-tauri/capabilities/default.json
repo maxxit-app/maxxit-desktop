@@ -44,6 +44,9 @@
     "allow-diagnostics-preview",
     "allow-diagnostics-test",
     "allow-diagnostics-flush",
-    "allow-diagnostics-export"
+    "allow-diagnostics-export",
+    "allow-product-analytics-health",
+    "allow-product-analytics-record",
+    "allow-product-analytics-consent"
   ]
 }

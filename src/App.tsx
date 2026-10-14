@@ -1,3 +1,5 @@
+import ProductAnalyticsSettings from "./ProductAnalyticsSettings";
+import { productScreen, trackProductEvent } from "./product-analytics";
 import { AccountGate } from "./AccountGate";
 import { LocalIdeas } from "./LocalIdeas";
 import DiagnosticsSettings from "./DiagnosticsSettings";
@@ -158,7 +160,13 @@ function Toggle({
 export default function App() {
   const [data, setData] = useState<Snapshot>(demo ? demoSnapshot() : empty);
   const [account, setAccount] = useState<AccountState>({ status: "checking" });
+  useEffect(() => {
+    if (account.status === "authenticated") trackProductEvent("app_open");
+  }, [account.status]);
   const [tab, setTab] = useState("Overview");
+  useEffect(() => {
+    productScreen(tab);
+  }, [tab]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [legacy, setLegacy] = useState<{
@@ -380,6 +388,7 @@ export default function App() {
             <h1>{title[tab][0]}</h1>
             <p>{title[tab][1]}</p>
           </header>
+          <ProductAnalyticsSettings prompt />
           {tab !== "Settings" && <UpdateNotice />}
           {demo && (
             <div className="notice">
@@ -1112,6 +1121,7 @@ export default function App() {
           {tab === "Settings" && (
             <div className="settings-grid">
               <UpdateNotice settings />
+              <ProductAnalyticsSettings />
               <DiagnosticsSettings />
               <section className="card settings-card">
                 <h2>On this Mac</h2>

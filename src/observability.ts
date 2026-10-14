@@ -1,3 +1,4 @@
+import { trackProductEvent, productActions } from "./product-analytics";
 import * as Sentry from "@sentry/react";
 import { invoke as nativeInvoke, isTauri } from "@tauri-apps/api/core";
 import { version } from "../package.json";
@@ -209,8 +210,12 @@ export async function invoke<T>(
       operationId: context.id,
     });
     recordDiagnostic("ui.command.completed", context);
+    if (productActions.has(command))
+      trackProductEvent("desktop_action", command);
     return result;
   } catch (cause) {
+    if (productActions.has(command))
+      trackProductEvent("action_failed", command);
     if (cause && typeof cause === "object" && "message" in cause) {
       const value = cause as {
         message: unknown;

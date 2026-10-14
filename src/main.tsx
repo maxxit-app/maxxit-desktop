@@ -1,9 +1,11 @@
+import { initializeProductAnalytics } from "./product-analytics";
 import React from "react";
 import { Sentry, initializeDiagnostics } from "./observability";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import TrayPanel from "./TrayPanel";
 import "./styles.css";
+initializeProductAnalytics();
 void initializeDiagnostics().finally(() => {
   createRoot(document.getElementById("root")!, {
     onUncaughtError: Sentry.reactErrorHandler(),

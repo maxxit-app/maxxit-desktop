@@ -180,10 +180,12 @@ test("tray permissions cannot mutate settings, credentials or install updates", 
     "allow-tray-resize",
     "allow-diagnostics-record",
     "allow-diagnostics-health",
+    "allow-product-analytics-health",
+    "allow-product-analytics-record",
   ]);
   assert.ok(
     !tray.permissions.some((permission) =>
-      /updater|cloud|settings|diagnostics-consent|diagnostics-export|diagnostics-test|diagnostics-flush/.test(
+      /updater|cloud|settings|product-analytics-consent|diagnostics-consent|diagnostics-export|diagnostics-test|diagnostics-flush/.test(
         permission,
       ),
     ),

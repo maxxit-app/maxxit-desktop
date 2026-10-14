@@ -507,6 +507,24 @@
           "markdownDescription": "Enables the open_link command without any pre-configured scope."
         },
         {
+          "description": "Enables the product_analytics_consent command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-product-analytics-consent",
+          "markdownDescription": "Enables the product_analytics_consent command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the product_analytics_health command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-product-analytics-health",
+          "markdownDescription": "Enables the product_analytics_health command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the product_analytics_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-product-analytics-record",
+          "markdownDescription": "Enables the product_analytics_record command without any pre-configured scope."
+        },
+        {
           "description": "Enables the remove_cloud_copies command without any pre-configured scope.",
           "type": "string",
           "const": "allow-remove-cloud-copies",
@@ -709,6 +727,24 @@
           "type": "string",
           "const": "deny-open-link",
           "markdownDescription": "Denies the open_link command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the product_analytics_consent command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-product-analytics-consent",
+          "markdownDescription": "Denies the product_analytics_consent command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the product_analytics_health command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-product-analytics-health",
+          "markdownDescription": "Denies the product_analytics_health command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the product_analytics_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-product-analytics-record",
+          "markdownDescription": "Denies the product_analytics_record command without any pre-configured scope."
         },
         {
           "description": "Denies the remove_cloud_copies command without any pre-configured scope.",
