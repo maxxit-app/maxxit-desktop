@@ -29,7 +29,7 @@ tokio = { version = "1", features = ["process", "io-util", "time", "sync", "macr
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rusqlite = { version = "0.40", features = ["bundled-sqlcipher-vendored-openssl"] }
 keyring = { version = "3", features = ["apple-native"] }
-sha2 = "0.10"
+sha2 = "0.11"
 uuid = { version = "1", features = ["v4"] }
 url = "2"
 dirs = "7"
