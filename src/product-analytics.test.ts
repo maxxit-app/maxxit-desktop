@@ -51,9 +51,13 @@ it("requires a connected, fresh, finite and unexpired reported window for activa
   provider.connected = false;
   expect(hasUsableObservation([provider], now)).toBe(false);
   provider.connected = true;
+  provider.observation!.observedAt = new Date(now - 7199999).toISOString();
+  expect(hasUsableObservation([provider], now)).toBe(true);
+  provider.observation!.observedAt = new Date(now - 7200000).toISOString();
+  expect(hasUsableObservation([provider], now)).toBe(false);
   provider.observation!.observedAt = new Date(now - 7200001).toISOString();
   expect(hasUsableObservation([provider], now)).toBe(false);
-  provider.observation!.observedAt = new Date(now + 1000).toISOString();
+  provider.observation!.observedAt = new Date(now + 1).toISOString();
   expect(hasUsableObservation([provider], now)).toBe(false);
   provider.observation!.observedAt = new Date(now).toISOString();
   provider.observation!.windows[0].resetsAt = new Date(now).toISOString();

@@ -25,11 +25,7 @@ app's Maxxit signing identity, and installs under ~/Applications. Inspect script
 before running it. The script requires Apple command-line tools for signature and
 notarization verification; the normal DMG installation does not. A failed download returns an error; it never builds source automatically.
 
-The Homebrew tap uses the released universal DMG. Once the cask change is integrated:
-
-```sh
-brew install --cask maxxit-app/tap/maxxit
-```
+Homebrew distribution is pending. Use the verified DMG or installer script above.
 
 Contributors can build explicitly using CONTRIBUTING.md. Unsigned source builds
 are development artifacts and are not the normal consumer installation.

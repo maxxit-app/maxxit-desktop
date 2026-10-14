@@ -81,8 +81,9 @@ fn usable_observation(observation: &Observation, now: chrono::DateTime<chrono::U
     let Ok(observed) = chrono::DateTime::parse_from_rfc3339(&observation.observed_at) else {
         return false;
     };
-    let age = now.signed_duration_since(observed).num_seconds();
-    (0..=7200).contains(&age)
+    let age = now.signed_duration_since(observed);
+    age >= chrono::Duration::zero()
+        && age < chrono::Duration::hours(2)
         && observation.windows.iter().any(|window| {
             window.availability == "available"
                 && window
@@ -250,6 +251,13 @@ mod tests {
                 "resetsAt":(now + chrono::Duration::hours(1)).to_rfc3339(),"availability":"available"}]
         })).unwrap();
         assert!(usable_observation(&observation, now));
+        observation.observed_at =
+            (now - chrono::Duration::hours(2) + chrono::Duration::milliseconds(1)).to_rfc3339();
+        assert!(usable_observation(&observation, now));
+        observation.observed_at = (now - chrono::Duration::hours(2)).to_rfc3339();
+        assert!(!usable_observation(&observation, now));
+        observation.observed_at = (now + chrono::Duration::milliseconds(1)).to_rfc3339();
+        assert!(!usable_observation(&observation, now));
         observation.observed_at = (now - chrono::Duration::hours(3)).to_rfc3339();
         assert!(!usable_observation(&observation, now));
         observation.observed_at = (now + chrono::Duration::minutes(1)).to_rfc3339();
