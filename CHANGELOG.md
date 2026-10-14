@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.19 October 15 2026
+
+- Match the activation milestone to the UI's freshness rule: observations at the two-hour stale boundary, or in the future, are excluded.
+- Preserve durable deduplication and existing account data, sharing choices and analytics consent.
+- Keep Homebrew instructions unpublished while that distribution channel is pending.
+- Support macOS 14 or later on Apple silicon and Intel. Physical Intel and macOS 14 runtime acceptance remain unverified.
+
 ## 0.1.18 October 14 2026
 
 - Measure a consented activation milestone when a connected provider first supplies a fresh, usable allowance window.

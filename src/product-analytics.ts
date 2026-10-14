@@ -70,7 +70,7 @@ export function hasUsableObservation(providers: Provider[], now = Date.now()) {
     const age = now - Date.parse(observation.observedAt);
     return (
       age >= 0 &&
-      age <= 2 * 60 * 60 * 1000 &&
+      age < 2 * 60 * 60 * 1000 &&
       observation.windows.some(
         (window) =>
           window.usedPercent !== null &&
