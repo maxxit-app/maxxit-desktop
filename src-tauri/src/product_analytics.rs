@@ -1,4 +1,9 @@
-use crate::{cloud, model::Settings, Runtime};
+use crate::{
+    cloud,
+    model::{Observation, Settings},
+    storage::Store,
+    Runtime,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tauri::{Emitter, State};
@@ -21,6 +26,7 @@ fn valid(input: &AnalyticsInput) -> bool {
         "user_engagement",
         "desktop_action",
         "action_failed",
+        "activation",
     ]
     .contains(&input.name.as_str())
         && [
@@ -71,6 +77,29 @@ fn client_id() -> String {
         u32::from_le_bytes(bytes[4..8].try_into().unwrap()).max(1)
     )
 }
+fn usable_observation(observation: &Observation, now: chrono::DateTime<chrono::Utc>) -> bool {
+    let Ok(observed) = chrono::DateTime::parse_from_rfc3339(&observation.observed_at) else {
+        return false;
+    };
+    let age = now.signed_duration_since(observed).num_seconds();
+    (0..=7200).contains(&age)
+        && observation.windows.iter().any(|window| {
+            window.availability == "available"
+                && window
+                    .used_percent
+                    .is_some_and(|value| value.is_finite() && (0.0..=100.0).contains(&value))
+                && window.resets_at.as_ref().is_some_and(|reset| {
+                    chrono::DateTime::parse_from_rfc3339(reset).is_ok_and(|reset| reset > now)
+                })
+        })
+}
+fn claim_activation(store: &Store, client: &str) -> Result<bool, String> {
+    if store.get("productAnalyticsActivated")? == Some(json!(client)) {
+        return Ok(false);
+    }
+    store.set("productAnalyticsActivated", &json!(client))?;
+    Ok(true)
+}
 fn health(runtime: &Runtime) -> Result<Value, String> {
     let store = runtime
         .session_store
@@ -107,6 +136,7 @@ pub async fn product_analytics_consent(
             },
         )?;
         store.set("productAnalyticsSession", &Value::Null)?;
+        store.set("productAnalyticsActivated", &Value::Null)?;
         store.set("productAnalyticsDelivery", &json!("idle"))?;
         store.set("productAnalyticsChoice", &json!(enabled))?;
     }
@@ -123,6 +153,27 @@ pub async fn product_analytics_record(
         return Err("Invalid analytics event".into());
     }
     let _delivery = DELIVERY.lock().await;
+    if input.name == "activation" {
+        let store = runtime.authorized_store()?;
+        let settings = store.settings()?;
+        let history = store.history()?;
+        let now = chrono::Utc::now();
+        let eligible = [
+            ("codex", settings.codex_enabled),
+            ("claude", settings.claude_enabled),
+        ]
+        .iter()
+        .any(|(provider, enabled)| {
+            *enabled
+                && history
+                    .iter()
+                    .find(|observation| observation.provider == *provider)
+                    .is_some_and(|observation| usable_observation(observation, now))
+        });
+        if !eligible {
+            return Ok(());
+        }
+    }
     let payload = {
         let store = runtime
             .session_store
@@ -138,6 +189,9 @@ pub async fn product_analytics_record(
         else {
             return Ok(());
         };
+        if input.name == "activation" && !claim_activation(&store, &client_id)? {
+            return Ok(());
+        }
         let now = chrono::Utc::now().timestamp();
         let previous = store.get("productAnalyticsSession")?.unwrap_or(Value::Null);
         let session = if previous["last"]
@@ -185,6 +239,32 @@ pub async fn product_analytics_record(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn activation_requires_a_fresh_reported_unexpired_window() {
+        let now = chrono::Utc::now();
+        let mut observation: Observation = serde_json::from_value(json!({
+            "provider":"codex", "accountLabel":"PRIVATE", "source":"fixture",
+            "observedAt":now.to_rfc3339(),
+            "windows":[{"bucketId":"fixture","windowId":"fixture","label":null,
+                "usedPercent":100,"durationMinutes":300,
+                "resetsAt":(now + chrono::Duration::hours(1)).to_rfc3339(),"availability":"available"}]
+        })).unwrap();
+        assert!(usable_observation(&observation, now));
+        observation.observed_at = (now - chrono::Duration::hours(3)).to_rfc3339();
+        assert!(!usable_observation(&observation, now));
+        observation.observed_at = (now + chrono::Duration::minutes(1)).to_rfc3339();
+        assert!(!usable_observation(&observation, now));
+        observation.observed_at = now.to_rfc3339();
+        observation.windows[0].resets_at = Some(now.to_rfc3339());
+        assert!(!usable_observation(&observation, now));
+    }
+    #[test]
+    fn activation_is_deduplicated_per_random_analytics_identity() {
+        let store = Store::open(std::path::Path::new(":memory:")).unwrap();
+        assert!(claim_activation(&store, "1.2").unwrap());
+        assert!(!claim_activation(&store, "1.2").unwrap());
+        assert!(claim_activation(&store, "3.4").unwrap());
+    }
     #[test]
     fn analytics_ids_are_random_numeric_pairs_without_account_identity() {
         let first = client_id();

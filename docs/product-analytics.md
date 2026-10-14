@@ -30,3 +30,21 @@ installed app in GA4 Realtime. Use event dimensions app_platform, app_version,
 window_name, action and screen_name to compare app use and feature outcomes.
 Dashboard receipt must be verified against the live property for each release.
 A successful collect response confirms ingest acceptance only.
+
+## Activation measurement
+
+With product analytics enabled, activation means the first observed usable provider
+window for the current random analytics identity. It requires a connected provider,
+an observation no older than two hours, a finite reported percentage and an unexpired
+available window. A reported zero remaining allowance is still a usable observation.
+Native code verifies the current account's stored observation and enabled connection.
+
+The event contains a fixed category, screen, app version and engagement metadata.
+It sends no provider name, account label, percentage, reset timestamp or source record.
+Native storage deduplicates the attempt across restarts. Changing analytics consent
+rotates the random identity and clears this marker. Transport remains best effort and
+does not retain or replay offline analytics events.
+
+The metric measures first observed setup in a consented identity, including existing
+installations first observed after this release. It is not proof of a new installation
+and cannot be joined to a website visitor without a separate consented design.

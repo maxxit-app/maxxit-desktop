@@ -52,6 +52,9 @@ See [desktop diagnostics](sentry.md) for capture limits, release setup, retentio
 
 Google Analytics receives screen views, fixed feature actions and outcomes, app version,
 window type, and time spent in the app only after you allow Product analytics.
+It also records a fixed setup milestone when a connected provider first has a fresh,
+usable reported window. The provider's name, values, account label and records are
+excluded from that event.
 This choice is separate from Sentry reporting, account sharing, and hosted AI consent.
 A random analytics identifier is stored in the encrypted session database. No Maxxit
 account identifier, email, provider data, project text, path, prompt, or credential is

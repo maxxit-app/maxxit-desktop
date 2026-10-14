@@ -1,5 +1,9 @@
 import ProductAnalyticsSettings from "./ProductAnalyticsSettings";
-import { productScreen, trackProductEvent } from "./product-analytics";
+import {
+  productScreen,
+  productActivation,
+  trackProductEvent,
+} from "./product-analytics";
 import { AccountGate } from "./AccountGate";
 import { LocalIdeas } from "./LocalIdeas";
 import DiagnosticsSettings from "./DiagnosticsSettings";
@@ -160,6 +164,9 @@ function Toggle({
 export default function App() {
   const [data, setData] = useState<Snapshot>(demo ? demoSnapshot() : empty);
   const [account, setAccount] = useState<AccountState>({ status: "checking" });
+  useEffect(() => {
+    productActivation(data.providers, account.status === "authenticated");
+  }, [data.providers, account.status]);
   useEffect(() => {
     if (account.status === "authenticated") trackProductEvent("app_open");
   }, [account.status]);

@@ -11,11 +11,71 @@ import {
   productScreen,
   setProductAnalyticsConsent,
   trackProductEvent,
+  hasUsableObservation,
+  productActivation,
 } from "./product-analytics";
+import { empty, type Provider } from "./types";
 afterEach(() => {
+  productActivation([], false);
   setProductAnalyticsConsent(false);
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+});
+function usableProvider(now: number): Provider {
+  return {
+    ...structuredClone(empty.providers[0]),
+    connected: true,
+    observation: {
+      provider: "codex",
+      accountLabel: "PRIVATE",
+      source: "fixture",
+      observedAt: new Date(now - 1000).toISOString(),
+      windows: [
+        {
+          bucketId: "fixture",
+          windowId: "fixture",
+          label: null,
+          usedPercent: 100,
+          durationMinutes: 300,
+          resetsAt: new Date(now + 1000).toISOString(),
+          availability: "available",
+        },
+      ],
+    },
+  };
+}
+it("requires a connected, fresh, finite and unexpired reported window for activation", () => {
+  const now = Date.now();
+  const provider = usableProvider(now);
+  expect(hasUsableObservation([provider], now)).toBe(true);
+  provider.connected = false;
+  expect(hasUsableObservation([provider], now)).toBe(false);
+  provider.connected = true;
+  provider.observation!.observedAt = new Date(now - 7200001).toISOString();
+  expect(hasUsableObservation([provider], now)).toBe(false);
+  provider.observation!.observedAt = new Date(now + 1000).toISOString();
+  expect(hasUsableObservation([provider], now)).toBe(false);
+  provider.observation!.observedAt = new Date(now).toISOString();
+  provider.observation!.windows[0].resetsAt = new Date(now).toISOString();
+  expect(hasUsableObservation([provider], now)).toBe(false);
+  provider.observation!.windows[0].resetsAt = new Date(
+    now + 1000,
+  ).toISOString();
+  provider.observation!.windows[0].usedPercent = NaN;
+  expect(hasUsableObservation([provider], now)).toBe(false);
+});
+it("queues activation once after consent and excludes provider details", async () => {
+  vi.stubGlobal("document", { hidden: false });
+  const providers = [usableProvider(Date.now())];
+  productActivation(providers, true);
+  expect(bridge.invoke).not.toHaveBeenCalled();
+  setProductAnalyticsConsent(true);
+  await vi.waitFor(() => expect(bridge.invoke).toHaveBeenCalledTimes(1));
+  expect(bridge.invoke.mock.calls[0][1].input.name).toBe("activation");
+  expect(JSON.stringify(bridge.invoke.mock.calls)).not.toContain("PRIVATE");
+  productActivation(providers, true);
+  productActivation(providers, false);
+  expect(bridge.invoke).toHaveBeenCalledTimes(1);
 });
 it("never invokes the analytics bridge before consent", () => {
   vi.stubGlobal("document", { hidden: false });

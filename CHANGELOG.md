@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.18 October 14 2026
+
+- Measure a consented activation milestone when a connected provider first supplies a fresh, usable allowance window.
+- Check the observation in native account storage and deduplicate the milestone per random analytics identity. Provider names, allowance values, account labels and source records remain excluded from Google's payload.
+- Preserve separate sharing, diagnostics and product analytics choices. Browser approval and download clicks remain separate from activation.
+- Support macOS 14 or later on Apple silicon and Intel. Physical Intel and macOS 14 runtime acceptance remain unverified.
+
 ## 0.1.17 October 14 2026
 
 - Add optional Google Analytics product measurement for desktop screens, feature actions, update outcomes and engagement. Analytics starts off until you allow it.
