@@ -1,6 +1,6 @@
 # Maxxit
 
-Track Codex and Claude Code usage and reset times on your Mac. The app includes daily Codex token charts, a menu bar usage panel, and a project list.
+Track Codex and Claude Code usage and reset times on your Mac. The app includes daily Codex token charts, a menu bar usage panel, and automatically discovered local projects.
 
 Built with Tauri 2, React, and Rust. Local analytics are free. Sign in to a Maxxit account before using the desktop. Local ideas use prompts you review and run in your own Codex or Claude. Maxxit Pro adds hosted project ideas, generic completion notifications, and reset emails for $9.99/month after service setup is complete.
 
@@ -10,7 +10,7 @@ Built with Tauri 2, React, and Rust. Local analytics are free. Sign in to a Maxx
 
 macOS 14 or later, Apple silicon or Intel.
 
-Get the app from [maxxit.app/download](https://maxxit.app/download). Open the DMG, drag Maxxit into Applications, then launch it from Applications. See the [Mac installation guide](docs/install-macos.md) for setup, updates, and uninstall.
+Get the app from [maxxit.app/download](https://maxxit.app/download?utm_source=github&utm_medium=referral&utm_campaign=repository). Open the DMG, drag Maxxit into Applications, then launch it from Applications. See the [website installation guide](https://maxxit.app/guides/install-and-use-maxxit?utm_source=github&utm_medium=referral&utm_campaign=repository) and [Mac installation guide](docs/install-macos.md) for setup, updates, and uninstall.
 
 Maxxit checks for updates on launch and hourly while the window is visible. When a newer release is available, an update button appears above your workspace. Download and install it there, then restart when you're ready. You can also check manually in Settings. Updates use Tauri's signature verification.
 
@@ -18,10 +18,11 @@ The [optional installer](scripts/install.sh) verifies the released DMG and insta
 
 ## Connect your assistants
 
-1. Sign in through the official CLI: `codex login` or `claude`.
-2. Open **Connections** in Maxxit.
-3. Select **Connect local usage** for the provider you use. Claude shows the proposed status-line change before applying it; existing output is preserved.
-4. Use the assistant. Maxxit refreshes once a minute, including while its window is closed.
+1. Sign in to Maxxit in your browser and approve this Mac. Web sharing stays optional.
+2. Sign in through the official CLI: `codex login` or `claude`.
+3. Open **Connections** in Maxxit.
+4. Select **Connect local usage** for the provider you use. Claude shows the proposed status-line change before applying it; existing output is preserved.
+5. Use the assistant. Maxxit refreshes once a minute, including while its window is closed.
 
 ![Connection controls](docs/screenshots/connections.jpg)
 
@@ -31,7 +32,7 @@ Click the menu bar icon for a compact usage panel. It shows every reported allow
 
 These screenshots show the actual interface with labeled sample data. Direct third-party provider OAuth is not available. Maxxit does not read provider token files, browser sessions, or passwords. Codex usage comes from local session records; Claude allowance comes from its documented status line. Claude may omit allowance until its next API response.
 
-Missing, expired, or observations older than two hours are shown as unavailable. Token charts contain observed local session increments and are explicitly partial. Percentages describe allowance windows, not billing credits or the cost of a task.
+Missing or expired windows remain unavailable. Older observations retain their last reading with a stale label and cannot establish current capacity. Token charts contain observed local session increments and are explicitly partial. Percentages describe allowance windows, not billing credits or the cost of a task.
 
 ## Usage analytics
 
@@ -51,7 +52,7 @@ Sign in through your browser on first launch. The device credential stays in Mac
 
 Choose allowance history and token analytics, projects, shared preferences, and detailed workflow results separately. Approved data automatically syncs to a read-only web workspace. Sharing is independent of hosted AI and Pro. Detailed workflow sharing includes the prompts and reports you review, so inspect them for sensitive content. Provider credentials and raw conversations are never collected for sync. The first connected desktop owns shared preferences; transfer that role from web Connections.
 
-Pro checkout opens Polar in your browser. After paying, explicitly choose hosted mode and enable project sharing for hosted ideas and verify your email in website settings for reset emails. Billing and email remain unavailable until the owner supplies credentials. Ideas never run automatically.
+After billing and email setup is complete, Pro checkout opens Polar in your browser. After paying, explicitly choose hosted mode and enable project sharing for hosted ideas and verify your email in website settings for reset emails. Billing and email remain unavailable until the owner supplies credentials. Ideas never run automatically.
 
 ## Development and contributions
 

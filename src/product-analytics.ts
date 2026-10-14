@@ -1,5 +1,6 @@
 import { invoke as nativeInvoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { remaining, type Provider } from "./types";
 const screens = [
   "Overview",
   "Analytics",
@@ -39,8 +40,9 @@ type EventName =
   | "user_engagement"
   | "desktop_action"
   | "action_failed";
+type ActivationEvent = "activation";
 type Input = {
-  name: EventName;
+  name: EventName | ActivationEvent;
   screen: string;
   engagementMs: number;
   action?: string;
@@ -50,12 +52,44 @@ let previous = Date.now();
 let enabled = false;
 let epoch = 0;
 let sending = false;
+let activationCandidate = false;
+let activationQueued = false;
 const queue: { input: Input; epoch: number }[] = [];
 export function setProductAnalyticsConsent(value: boolean) {
   enabled = value;
   epoch++;
   queue.length = 0;
   previous = Date.now();
+  activationQueued = false;
+  if (value && activationCandidate) recordActivation();
+}
+export function hasUsableObservation(providers: Provider[], now = Date.now()) {
+  return providers.some((provider) => {
+    const observation = provider.observation;
+    if (!provider.connected || !observation) return false;
+    const age = now - Date.parse(observation.observedAt);
+    return (
+      age >= 0 &&
+      age <= 2 * 60 * 60 * 1000 &&
+      observation.windows.some(
+        (window) =>
+          window.usedPercent !== null &&
+          Number.isFinite(window.usedPercent) &&
+          window.usedPercent >= 0 &&
+          window.usedPercent <= 100 &&
+          remaining(window, now) !== null,
+      )
+    );
+  });
+}
+function recordActivation() {
+  if (!enabled || activationQueued || !isTauri() || document.hidden) return;
+  activationQueued = true;
+  trackProductEvent("activation");
+}
+export function productActivation(providers: Provider[], authorized: boolean) {
+  activationCandidate = authorized && hasUsableObservation(providers);
+  if (activationCandidate) recordActivation();
 }
 export function productScreen(value: string) {
   if (!screens.includes(value) || screen === value) return;
@@ -77,7 +111,10 @@ async function drain() {
     sending = false;
   }
 }
-export function trackProductEvent(name: EventName, action?: string) {
+export function trackProductEvent(
+  name: EventName | ActivationEvent,
+  action?: string,
+) {
   if (
     !enabled ||
     !isTauri() ||
