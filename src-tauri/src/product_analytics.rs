@@ -62,6 +62,15 @@ fn valid(input: &AnalyticsInput) -> bool {
             .contains(&action)
         })
 }
+fn client_id() -> String {
+    let uuid = uuid::Uuid::new_v4();
+    let bytes = uuid.as_bytes();
+    format!(
+        "{}.{}",
+        u32::from_le_bytes(bytes[..4].try_into().unwrap()).max(1),
+        u32::from_le_bytes(bytes[4..8].try_into().unwrap()).max(1)
+    )
+}
 fn health(runtime: &Runtime) -> Result<Value, String> {
     let store = runtime
         .session_store
@@ -92,7 +101,7 @@ pub async fn product_analytics_consent(
         store.set(
             "productAnalyticsClientId",
             &if enabled {
-                json!(uuid::Uuid::new_v4().to_string())
+                json!(client_id())
             } else {
                 Value::Null
             },
@@ -176,6 +185,16 @@ pub async fn product_analytics_record(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn analytics_ids_are_random_numeric_pairs_without_account_identity() {
+        let first = client_id();
+        assert_ne!(first, client_id());
+        let parts: Vec<_> = first.split('.').collect();
+        assert_eq!(parts.len(), 2);
+        assert!(parts
+            .iter()
+            .all(|part| part.parse::<u32>().is_ok_and(|value| value > 0)));
+    }
     #[test]
     fn only_fixed_event_metadata_is_accepted() {
         let mut input = AnalyticsInput {
